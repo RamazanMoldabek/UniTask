@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
-import 'add_task_screen.dart';
+import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
-
-enum TaskFilter {
-  all('Барлығы'),
-  urgent('Шұғыл'),
-  inProgress('Орындалуда'),
-  completed('Аяқталды');
-
-  final String label;
-  const TaskFilter(this.label);
-}
+import 'add_task_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
   final List<Task> tasks;
@@ -34,627 +25,418 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  TaskFilter _selectedFilter = TaskFilter.all;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
+  bool _filterOnlyUrgent = false;
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  String _getKazakhFormattedDate() {
+    final now = DateTime.now();
+    const weekdays = [
+      'Дүйсенбі',
+      'Сейсенбі',
+      'Сәрсенбі',
+      'Бейсенбі',
+      'Жұма',
+      'Сенбі',
+      'Жексенбі'
+    ];
+    const months = [
+      'қаңтар',
+      'ақпан',
+      'наурыз',
+      'сәуір',
+      'мамыр',
+      'маусым',
+      'шілде',
+      'тамыз',
+      'қыркүйек',
+      'қазан',
+      'қараша',
+      'желтоқсан'
+    ];
+    final weekday = weekdays[now.weekday - 1];
+    final month = months[now.month - 1];
+    return '$weekday, ${now.day} $month';
   }
 
-  List<Task> get _filteredTasks {
-    return widget.tasks.where((task) {
-      // 1. Status/Priority Filter
-      switch (_selectedFilter) {
-        case TaskFilter.all:
-          break;
-        case TaskFilter.urgent:
-          if (task.priority != TaskPriority.high || task.isCompleted) return false;
-          break;
-        case TaskFilter.inProgress:
-          if (task.isCompleted) return false;
-          break;
-        case TaskFilter.completed:
-          if (!task.isCompleted) return false;
-          break;
-      }
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-      // 2. Search Query Filter
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        final matchesTitle = task.title.toLowerCase().contains(q);
-        final matchesSubject = task.subject.toLowerCase().contains(q);
-        if (!matchesTitle && !matchesSubject) return false;
-      }
+    final totalTasks = widget.tasks.length;
+    final completedTasksCount =
+        widget.tasks.where((t) => t.isCompleted).length;
+    final remainingCount = totalTasks - completedTasksCount;
+    final progress =
+        totalTasks > 0 ? (completedTasksCount / totalTasks).clamp(0.0, 1.0) : 0.0;
 
+    final inProgressTasks = widget.tasks.where((t) {
+      if (t.isCompleted) return false;
+      if (_filterOnlyUrgent) {
+        return t.priority == TaskPriority.high;
+      }
       return true;
     }).toList();
-  }
-
-  String _formatDeadline(DateTime dt) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final tomorrow = today.add(const Duration(days: 1));
-    final targetDate = DateTime(dt.year, dt.month, dt.day);
-
-    final hour = dt.hour.toString().padLeft(2, '0');
-    final minute = dt.minute.toString().padLeft(2, '0');
-    final timeStr = '$hour:$minute';
-
-    if (targetDate == today) {
-      return 'Бүгін, $timeStr';
-    } else if (targetDate == tomorrow) {
-      return 'Ертең, $timeStr';
-    } else {
-      const months = [
-        'қаң',
-        'ақп',
-        'нау',
-        'сәу',
-        'мам',
-        'мау',
-        'шіл',
-        'там',
-        'қыр',
-        'қаз',
-        'қар',
-        'жел'
-      ];
-      return '${dt.day} ${months[dt.month - 1]}, $timeStr';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final totalCount = widget.tasks.length;
-    final completedCount = widget.tasks.where((t) => t.isCompleted).length;
-    final progress = totalCount > 0 ? (completedCount / totalCount) : 0.0;
-    final progressPercent = (progress * 100).toInt();
-
-    final filteredList = _filteredTasks;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final newTask = await Navigator.of(context).push<Task>(
-            MaterialPageRoute(
-              builder: (context) => const AddTaskScreen(),
-            ),
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          AddTaskSheet.show(
+            context,
+            onSave: widget.onAddTask,
           );
-          if (newTask != null) {
-            widget.onAddTask(newTask);
-          }
         },
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Жаңа тапсырма', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF4F46E5),
+        foregroundColor: Colors.white,
         elevation: 4,
+        shape: const CircleBorder(),
+        child: const Icon(Icons.add_rounded, size: 28),
       ),
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // App Header
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                child: Column(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
+          children: [
+            // Header: Date + Greeting + Avatar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Greeting Row
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Сәлем, Рамазан! 👋',
-                              style: theme.textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: -0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Бүгінге арналған оқу жоспарыңыз',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Stack(
-                            children: [
-                              Icon(
-                                Icons.notifications_none_rounded,
-                                color: colorScheme.onSurface,
-                                size: 24,
-                              ),
-                              Positioned(
-                                right: 0,
-                                top: 0,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFFEF4444),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Search Bar
-                    TextField(
-                      controller: _searchController,
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val.trim();
-                        });
-                      },
-                      decoration: InputDecoration(
-                        hintText: 'Тапсырма немесе пән атауын іздеу...',
-                        hintStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
-                          fontSize: 14,
-                        ),
-                        prefixIcon: Icon(
-                          Icons.search_rounded,
-                          color: colorScheme.primary,
-                        ),
-                        suffixIcon: _searchQuery.isNotEmpty
-                            ? IconButton(
-                                icon: const Icon(Icons.clear_rounded, size: 20),
-                                onPressed: () {
-                                  _searchController.clear();
-                                  setState(() {
-                                    _searchQuery = '';
-                                  });
-                                },
-                              )
-                            : null,
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    Text(
+                      _getKazakhFormattedDate(),
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8),
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
-                    const SizedBox(height: 18),
-
-                    // Progress Card
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            colorScheme.primary,
-                            const Color(0xFF4F46E5), // Indigo shade
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: colorScheme.primary.withValues(alpha: 0.25),
-                            blurRadius: 16,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Күндік үлгерім',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '$totalCount тапсырманың $completedCount-еуі орындалды',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '$progressPercent%',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: progress,
-                              minHeight: 8,
-                              backgroundColor: Colors.white.withValues(alpha: 0.2),
-                              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              const Icon(Icons.bolt_rounded, size: 16, color: Color(0xFFFDE047)),
-                              const SizedBox(width: 4),
-                              Text(
-                                progress == 1.0
-                                    ? 'Керемет! Барлық тапсырмалар аяқталды 🏆'
-                                    : 'Жарайсың! Күн мақсаты жақын 🔥',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                    const SizedBox(height: 2),
+                    Text(
+                      'Сәлем, Рамазан!',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Filter Chips Bar
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: TaskFilter.values.map((filter) {
-                          final isSelected = _selectedFilter == filter;
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: FilterChip(
-                              label: Text(filter.label),
-                              selected: isSelected,
-                              onSelected: (_) {
-                                setState(() {
-                                  _selectedFilter = filter;
-                                });
-                              },
-                              showCheckmark: false,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.outlineVariant.withValues(alpha: 0.4),
-                              ),
-                              backgroundColor: colorScheme.surface,
-                              selectedColor: colorScheme.primaryContainer,
-                              labelStyle: TextStyle(
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected
-                                    ? colorScheme.primary
-                                    : colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          );
-                        }).toList(),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Section Title
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Тапсырмалар тізімі',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          '${filteredList.length} тапсырма',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
                   ],
                 ),
-              ),
-            ),
-
-            // Tasks List
-            filteredList.isEmpty
-                ? SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.assignment_turned_in_rounded,
-                            size: 56,
-                            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            'Тапсырмалар табылмады',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Бұл сүзгі бойынша тапсырма жоқ немесе іздеу нәтижесі бос.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
+                // Avatar PT
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFF4F46E5).withValues(alpha: 0.2),
+                      width: 1.5,
                     ),
-                  )
-                : SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final task = filteredList[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _TaskCard(
-                              task: task,
-                              formattedDeadline: _formatDeadline(task.deadline),
-                              onToggle: () => widget.onToggleTask(task),
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => TaskDetailScreen(
-                                      task: task,
-                                      onUpdate: widget.onUpdateTask,
-                                      onDelete: widget.onDeleteTask,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          );
-                        },
-                        childCount: filteredList.length,
+                  ),
+                  child: const Center(
+                    child: Text(
+                      'PT',
+                      style: TextStyle(
+                        color: Color(0xFF4F46E5),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15,
                       ),
                     ),
                   ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
 
-class _TaskCard extends StatelessWidget {
-  final Task task;
-  final String formattedDeadline;
-  final VoidCallback onToggle;
-  final VoidCallback onTap;
-
-  const _TaskCard({
-    required this.task,
-    required this.formattedDeadline,
-    required this.onToggle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDone = task.isCompleted;
-
-    final subtasksDone = task.subtasks.where((s) => s.isDone).length;
-    final totalSubtasks = task.subtasks.length;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDone
-              ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-              : colorScheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: isDone
-                ? colorScheme.outlineVariant.withValues(alpha: 0.2)
-                : colorScheme.outlineVariant.withValues(alpha: 0.4),
-          ),
-          boxShadow: isDone
-              ? null
-              : [
+            // Achievement Banner
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: const Color(0xFF4F46E5),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.02),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                    color: const Color(0xFF4F46E5).withValues(alpha: 0.28),
+                    blurRadius: 16,
+                    offset: const Offset(0, 6),
                   ),
                 ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Checkbox
-            Transform.translate(
-              offset: const Offset(-4, -2),
-              child: IconButton(
-                icon: Icon(
-                  isDone
-                      ? Icons.check_circle_rounded
-                      : Icons.radio_button_unchecked_rounded,
-                  color: isDone ? const Color(0xFF10B981) : colorScheme.outline,
-                  size: 26,
-                ),
-                onPressed: onToggle,
-                tooltip: isDone ? 'Орындалмаған деп белгілеу' : 'Орындалды деп белгілеу',
               ),
-            ),
-            const SizedBox(width: 4),
-
-            // Main Info
-            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Tags Row (Subject + Priority)
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: colorScheme.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          task.subject,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: colorScheme.primary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      Text(
+                        'Осы аптадағы жетістік',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: task.priority.color.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(task.priority.icon, size: 12, color: task.priority.color),
-                            const SizedBox(width: 3),
-                            Text(
-                              task.priority.label,
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: task.priority.color,
-                              ),
-                            ),
-                          ],
-                        ),
+                      Icon(
+                        Icons.emoji_events_outlined,
+                        color: Colors.white.withValues(alpha: 0.85),
+                        size: 22,
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
-
-                  // Task Title
                   Text(
-                    task.title,
-                    style: TextStyle(
-                      fontSize: 15,
+                    '$completedTasksCount/$totalTasks орындалды',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      decoration: isDone ? TextDecoration.lineThrough : null,
-                      color: isDone
-                          ? colorScheme.onSurfaceVariant.withValues(alpha: 0.6)
-                          : colorScheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 10),
-
-                  // Footer (Deadline + Subtasks count)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 14,
-                        color: task.deadline.isBefore(DateTime.now()) && !isDone
-                            ? colorScheme.error
-                            : colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        formattedDeadline,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: task.deadline.isBefore(DateTime.now()) && !isDone
-                              ? colorScheme.error
-                              : colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      if (totalSubtasks > 0) ...[
-                        const SizedBox(width: 14),
-                        Icon(
-                          Icons.checklist_rounded,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$subtasksDone/$totalSubtasks',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
+                  const SizedBox(height: 12),
+                  // Progress Bar
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 6,
+                      backgroundColor: Colors.white.withValues(alpha: 0.25),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    remainingCount > 0
+                        ? 'Керемет! Тағы $remainingCount тапсырма қалды.'
+                        : 'Тамаша! Барлық тапсырма орындалды! 🎉',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(height: 18),
+
+            // Filter Chips
+            Row(
+              children: [
+                // "Барлығы" chip
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterOnlyUrgent = false;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: !_filterOnlyUrgent
+                          ? const Color(0xFF4F46E5)
+                          : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: !_filterOnlyUrgent
+                            ? const Color(0xFF4F46E5)
+                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    child: Text(
+                      'Барлығы',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: !_filterOnlyUrgent
+                            ? Colors.white
+                            : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // "Шұғыл" chip
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _filterOnlyUrgent = true;
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: _filterOnlyUrgent
+                          ? const Color(0xFF4F46E5)
+                          : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _filterOnlyUrgent
+                            ? const Color(0xFF4F46E5)
+                            : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.local_fire_department_rounded,
+                          size: 16,
+                          color: _filterOnlyUrgent
+                              ? Colors.white
+                              : const Color(0xFFEF4444),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Шұғыл',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: _filterOnlyUrgent
+                                ? Colors.white
+                                : (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF64748B)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Section Header: "Алдағы тапсырмалар"
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Алдағы тапсырмалар',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  '${inProgressTasks.length} тапсырма',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4F46E5),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // In Progress Task Cards
+            if (inProgressTasks.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.task_alt_rounded,
+                        size: 36,
+                        color: const Color(0xFF10B981),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Орындалатын тапсырма жоқ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ...inProgressTasks.map(
+                (task) => TaskCard(
+                  task: task,
+                  onToggle: () => widget.onToggleTask(task),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => TaskDetailScreen(
+                          task: task,
+                          onUpdate: widget.onUpdateTask,
+                          onDelete: widget.onDeleteTask,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            const SizedBox(height: 8),
+
+            // Completed Tasks Summary Banner
+            if (completedTasksCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.check_circle_outline_rounded,
+                        color: Color(0xFF10B981),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '$completedTasksCount тапсырма аяқталды',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Жақсы қарқынмен келе жатырсың!',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

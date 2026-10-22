@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
-import 'add_task_screen.dart';
+import 'add_task_sheet.dart';
 
 class CalendarScreen extends StatefulWidget {
   final List<Task> tasks;
@@ -68,409 +69,269 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return days[weekday - 1];
   }
 
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-
   List<DateTime> _generateWeekDays() {
-    // Generate 14 days around the selected date
-    final start = _selectedDate.subtract(const Duration(days: 3));
+    final start = _selectedDate.subtract(const Duration(days: 4));
     return List.generate(14, (i) => start.add(Duration(days: i)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final dayTasks = _getTasksForSelectedDate();
     final weekDays = _generateWeekDays();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Күнтізбе мен жоспар',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_task_rounded),
-            tooltip: 'Тапсырма қосу',
-            onPressed: () async {
-              final newTask = await Navigator.of(context).push<Task>(
-                MaterialPageRoute(builder: (context) => const AddTaskScreen()),
-              );
-              if (newTask != null) {
-                widget.onAddTask(newTask);
-              }
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Month Header with navigation
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-            child: Row(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Күнтізбе',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    AddTaskSheet.show(
+                      context,
+                      onSave: widget.onAddTask,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.add_rounded,
+                    color: Color(0xFF4F46E5),
+                    size: 26,
+                  ),
+                  tooltip: 'Тапсырма қосу',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Month navigation row
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    Icon(Icons.calendar_month_rounded, color: colorScheme.primary, size: 22),
+                    const Icon(
+                      Icons.calendar_month_rounded,
+                      color: Color(0xFF4F46E5),
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       '${_getMonthName(_selectedDate.month)} ${_selectedDate.year}',
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: TextStyle(
+                        fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : const Color(0xFF0F172A),
                       ),
                     ),
                   ],
                 ),
-                TextButton.icon(
+                TextButton(
                   onPressed: () {
                     final now = DateTime.now();
                     setState(() {
                       _selectedDate = DateTime(now.year, now.month, now.day);
                     });
                   },
-                  icon: const Icon(Icons.today_rounded, size: 16),
-                  label: const Text('Бүгін'),
                   style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  ),
+                  child: const Text(
+                    'Бүгін',
+                    style: TextStyle(
+                      color: Color(0xFF4F46E5),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
+            const SizedBox(height: 12),
 
-          // Horizontal Date Picker Strip
-          SizedBox(
-            height: 94,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              itemCount: weekDays.length,
-              separatorBuilder: (ctx, i) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final date = weekDays[index];
-                final isSelected = _isSameDay(date, _selectedDate);
-                final isToday = _isSameDay(date, DateTime.now());
-                final hasTasks = _hasTasksOnDate(date);
+            // Horizontal Date Picker Strip
+            SizedBox(
+              height: 84,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: weekDays.length,
+                separatorBuilder: (ctx, i) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final date = weekDays[index];
+                  final isSelected = _isSameDay(date, _selectedDate);
+                  final hasTasks = _hasTasksOnDate(date);
 
-                return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _selectedDate = date;
-                    });
-                  },
-                  borderRadius: BorderRadius.circular(18),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    width: 58,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : isToday
-                              ? colorScheme.primaryContainer.withValues(alpha: 0.5)
-                              : colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedDate = date;
+                      });
+                    },
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      width: 54,
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? colorScheme.primary
-                            : isToday
-                                ? colorScheme.primary
-                                : colorScheme.outlineVariant.withValues(alpha: 0.3),
-                        width: isToday && !isSelected ? 1.5 : 1,
+                            ? const Color(0xFF4F46E5)
+                            : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : (isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0)),
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: const Color(0xFF4F46E5).withValues(alpha: 0.3),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 3),
+                                )
+                              ]
+                            : [],
                       ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: colorScheme.primary.withValues(alpha: 0.3),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : null,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _getWeekDayShort(date.weekday),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                              color: isSelected
+                                  ? Colors.white.withValues(alpha: 0.9)
+                                  : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${date.day}',
+                            style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected
+                                  ? Colors.white
+                                  : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Container(
+                            width: 5,
+                            height: 5,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: hasTasks
+                                  ? (isSelected
+                                      ? Colors.white
+                                      : const Color(0xFF4F46E5))
+                                  : Colors.transparent,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Text(
-                          _getWeekDayShort(date.weekday),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: isSelected
-                                ? colorScheme.onPrimary
-                                : colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          '${date.day}',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
-                          ),
-                        ),
-                        Container(
-                          width: 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: hasTasks
-                                ? (isSelected ? colorScheme.onPrimary : colorScheme.primary)
-                                : Colors.transparent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            const SizedBox(height: 24),
 
-          // Day summary chip
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-            child: Row(
+            // Selected date header
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${_selectedDate.day} ${_getMonthName(_selectedDate.month).toLowerCase()}',
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  '${_selectedDate.day} ${_getMonthName(_selectedDate.month).toLowerCase()} тапсырмалары',
+                  style: TextStyle(
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: dayTasks.isEmpty
-                        ? colorScheme.surfaceContainerHighest
-                        : colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    dayTasks.isEmpty
-                        ? 'Тапсырма жоқ'
-                        : '${dayTasks.length} тапсырма',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: dayTasks.isEmpty
-                          ? colorScheme.onSurfaceVariant
-                          : colorScheme.primary,
-                    ),
+                Text(
+                  '${dayTasks.length} тапсырма',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF4F46E5),
                   ),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 8),
+            const SizedBox(height: 12),
 
-          // Tasks List for Selected Day
-          Expanded(
-            child: dayTasks.isEmpty
-                ? Center(
-                    child: SingleChildScrollView(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(24),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(alpha: 0.08),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                Icons.event_available_rounded,
-                                size: 56,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            Text(
-                              'Бұл күнге тапсырмалар жоқ!',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Тынығуға немесе басқа жұмыстарға уақыт бөлуге тамаша мүмкіндік ✨',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: colorScheme.onSurfaceVariant,
-                                fontSize: 13,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
-                            FilledButton.tonalIcon(
-                              onPressed: () async {
-                                final newTask = await Navigator.of(context).push<Task>(
-                                  MaterialPageRoute(
-                                    builder: (context) => const AddTaskScreen(),
-                                  ),
-                                );
-                                if (newTask != null) {
-                                  widget.onAddTask(newTask);
-                                }
-                              },
-                              icon: const Icon(Icons.add_rounded),
-                              label: const Text('Тапсырма қосу'),
-                            ),
-                          ],
+            if (dayTasks.isEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 10),
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  ),
+                ),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.event_available_rounded,
+                        size: 40,
+                        color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Бұл күнге тапсырмалар жоқ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    itemCount: dayTasks.length,
-                    separatorBuilder: (ctx, i) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final task = dayTasks[index];
-                      return InkWell(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => TaskDetailScreen(
-                                task: task,
-                                onUpdate: widget.onUpdateTask,
-                                onDelete: widget.onDeleteTask,
-                              ),
-                            ),
-                          );
-                        },
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerLow,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: colorScheme.outlineVariant.withValues(alpha: 0.35),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              // Checkbox
-                              IconButton(
-                                icon: Icon(
-                                  task.isCompleted
-                                      ? Icons.check_circle_rounded
-                                      : Icons.radio_button_unchecked_rounded,
-                                  color: task.isCompleted
-                                      ? const Color(0xFF10B981)
-                                      : colorScheme.outline,
-                                  size: 26,
-                                ),
-                                onPressed: () => widget.onToggleTask(task),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Text(
-                                          task.subject,
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                            color: colorScheme.primary,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 2,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: task.priority.color.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Text(
-                                            task.priority.label,
-                                            style: TextStyle(
-                                              fontSize: 10,
-                                              fontWeight: FontWeight.bold,
-                                              color: task.priority.color,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      task.title,
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        decoration:
-                                            task.isCompleted ? TextDecoration.lineThrough : null,
-                                        color: task.isCompleted
-                                            ? colorScheme.onSurfaceVariant
-                                            : colorScheme.onSurface,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.access_time_rounded,
-                                          size: 14,
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          _formatTime(task.deadline),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        if (task.subtasks.isNotEmpty) ...[
-                                          const SizedBox(width: 12),
-                                          Icon(
-                                            Icons.checklist_rounded,
-                                            size: 14,
-                                            color: colorScheme.onSurfaceVariant,
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            '${task.subtasks.where((s) => s.isDone).length}/${task.subtasks.length}',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: colorScheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Демалыс күні немесе жаңа тапсырма қосыңыз',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
-          ),
-        ],
+                ),
+              )
+            else
+              ...dayTasks.map(
+                (task) => TaskCard(
+                  task: task,
+                  onToggle: () => widget.onToggleTask(task),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => TaskDetailScreen(
+                          task: task,
+                          onUpdate: widget.onUpdateTask,
+                          onDelete: widget.onDeleteTask,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
