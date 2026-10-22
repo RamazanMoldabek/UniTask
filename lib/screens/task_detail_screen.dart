@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
-import 'add_task_screen.dart';
+import 'add_task_sheet.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
@@ -27,14 +27,6 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _currentTask = widget.task;
   }
 
-  void _toggleTaskStatus() {
-    final updated = _currentTask.copyWith(isCompleted: !_currentTask.isCompleted);
-    setState(() {
-      _currentTask = updated;
-    });
-    widget.onUpdate(updated);
-  }
-
   void _toggleSubtask(int index) {
     final newSubtasks = _currentTask.subtasks.map((s) => s.copyWith()).toList();
     newSubtasks[index].isDone = !newSubtasks[index].isDone;
@@ -47,12 +39,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   Future<void> _editTask() async {
-    final result = await Navigator.of(context).push<Task>(
-      MaterialPageRoute(
-        builder: (context) => AddTaskScreen(taskToEdit: _currentTask),
-      ),
+    final result = await AddTaskSheet.show(
+      context,
+      taskToEdit: _currentTask,
+      onSave: (updatedTask) {
+        setState(() {
+          _currentTask = updatedTask;
+        });
+        widget.onUpdate(updatedTask);
+      },
     );
-
     if (result != null) {
       setState(() {
         _currentTask = result;
@@ -62,21 +58,30 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   }
 
   void _confirmDelete() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Тапсырманы жою'),
-        content: const Text('Бұл тапсырманы шынымен жойғыңыз келе ме? Бұл әрекетті қайтару мүмкін емес.'),
+        backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Тапсырманы жою',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        content: const Text(
+          'Бұл тапсырманы шынымен жойғыңыз келе ме?',
+          style: TextStyle(fontSize: 14),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Болдырмау'),
+            child: const Text('Болдырмау', style: TextStyle(color: Color(0xFF64748B))),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(ctx).colorScheme.error,
-              foregroundColor: Theme.of(ctx).colorScheme.onError,
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -90,7 +95,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     );
   }
 
-  String _formatDate(DateTime dt) {
+  String _formatFullDate(DateTime dt) {
     const months = [
       'қаңтар',
       'ақпан',
@@ -106,402 +111,417 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
       'желтоқсан'
     ];
     final hour = dt.hour.toString().padLeft(2, '0');
-    final min = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year}, сағат $hour:$min';
-  }
-
-  String _getRemainingTime(DateTime deadline) {
-    final now = DateTime.now();
-    final difference = deadline.difference(now);
-
-    if (_currentTask.isCompleted) {
-      return 'Орындалды';
-    }
-    if (difference.isNegative) {
-      return 'Мерзімі өтіп кетті';
-    }
-    if (difference.inDays > 0) {
-      return '${difference.inDays} күн ${difference.inHours % 24} сағат қалды';
-    }
-    if (difference.inHours > 0) {
-      return '${difference.inHours} сағат ${difference.inMinutes % 60} мин қалды';
-    }
-    return '${difference.inMinutes} минут қалды';
+    final minute = dt.minute.toString().padLeft(2, '0');
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year} · $hour:$minute';
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final subtasksDoneCount = _currentTask.subtasks.where((s) => s.isDone).length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final completedSubtasks =
+        _currentTask.subtasks.where((s) => s.isDone).length;
     final totalSubtasks = _currentTask.subtasks.length;
-    final subtaskProgress = totalSubtasks > 0 ? (subtasksDoneCount / totalSubtasks) : 0.0;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text(
-          'Тапсырма мәліметі',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        title: Text(
+          'Тапсырма',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : const Color(0xFF0F172A),
+          ),
+        ),
+        centerTitle: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Өңдеу',
-            onPressed: _editTask,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded),
-            tooltip: 'Жою',
-            color: colorScheme.error,
-            onPressed: _confirmDelete,
-          ),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _editTask,
-                  icon: const Icon(Icons.edit_rounded),
-                  label: const Text('Өңдеу'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
+          PopupMenuButton<String>(
+            icon: Icon(
+              Icons.more_horiz_rounded,
+              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            onSelected: (value) {
+              if (value == 'edit') {
+                _editTask();
+              } else if (value == 'delete') {
+                _confirmDelete();
+              } else if (value == 'toggle') {
+                final updated = _currentTask.copyWith(isCompleted: !_currentTask.isCompleted);
+                setState(() => _currentTask = updated);
+                widget.onUpdate(updated);
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'toggle',
+                child: Row(
+                  children: [
+                    Icon(
+                      _currentTask.isCompleted ? Icons.undo_rounded : Icons.check_circle_outline_rounded,
+                      size: 18,
+                      color: const Color(0xFF4F46E5),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(_currentTask.isCompleted ? 'Орындалмаған деп белгілеу' : 'Орындалды деп белгілеу'),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: FilledButton.icon(
-                  onPressed: _toggleTaskStatus,
-                  icon: Icon(
-                    _currentTask.isCompleted
-                        ? Icons.replay_rounded
-                        : Icons.check_circle_rounded,
-                  ),
-                  label: Text(
-                    _currentTask.isCompleted ? 'Қайта бастау' : 'Тапсырманы аяқтау',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _currentTask.isCompleted
-                        ? colorScheme.secondary
-                        : colorScheme.primary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: const [
+                    Icon(Icons.edit_outlined, size: 18, color: Color(0xFF4F46E5)),
+                    SizedBox(width: 10),
+                    Text('Өңдеу'),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: const [
+                    Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                    SizedBox(width: 10),
+                    Text('Жою', style: TextStyle(color: Color(0xFFEF4444))),
+                  ],
                 ),
               ),
             ],
           ),
-        ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status and Priority Badges
-            Row(
-              children: [
-                // Completion Status Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _currentTask.isCompleted
-                        ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                        : colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _currentTask.isCompleted
-                            ? Icons.check_circle_rounded
-                            : Icons.pending_rounded,
-                        size: 16,
-                        color: _currentTask.isCompleted
-                            ? const Color(0xFF10B981)
-                            : colorScheme.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _currentTask.isCompleted ? 'Орындалды' : 'Орындалуда',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _currentTask.isCompleted
-                              ? const Color(0xFF10B981)
-                              : colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-
-                // Priority Badge
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _currentTask.priority.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _currentTask.priority.icon,
-                        size: 16,
-                        color: _currentTask.priority.color,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        _currentTask.priority.label,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: _currentTask.priority.color,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Subject label
-            Row(
-              children: [
-                Icon(Icons.school_outlined, size: 18, color: colorScheme.primary),
-                const SizedBox(width: 8),
-                Text(
-                  _currentTask.subject,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Main Title
-            Text(
-              _currentTask.title,
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-                decoration: _currentTask.isCompleted ? TextDecoration.lineThrough : null,
-                color: _currentTask.isCompleted
-                    ? colorScheme.onSurfaceVariant.withValues(alpha: 0.7)
-                    : colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Deadline Information Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.4),
-                ),
-              ),
-              child: Row(
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primary.withValues(alpha: 0.1),
-                      shape: BoxShape.circle,
+                  // Title
+                  Text(
+                    _currentTask.title,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : const Color(0xFF0F172A),
+                      height: 1.25,
                     ),
-                    child: Icon(Icons.access_time_filled_rounded, color: colorScheme.primary),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  const SizedBox(height: 12),
+
+                  // Tags Row
+                  Row(
+                    children: [
+                      // Subject badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEEF2FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _currentTask.subject,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF4F46E5),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Priority badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: _currentTask.priority.backgroundColor,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _currentTask.priority.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _currentTask.priority.color,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Deadline Card
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Text(
-                          'Мерзімі (Дедлайн)',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: colorScheme.onSurfaceVariant,
-                            fontWeight: FontWeight.w500,
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(
+                            Icons.calendar_month_outlined,
+                            color: Color(0xFF4F46E5),
+                            size: 22,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _formatDate(_currentTask.deadline),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _getRemainingTime(_currentTask.deadline),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _currentTask.deadline.isBefore(DateTime.now()) &&
-                                    !_currentTask.isCompleted
-                                ? colorScheme.error
-                                : colorScheme.primary,
-                          ),
+                        const SizedBox(width: 14),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Тапсыру мерзімі',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF94A3B8),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _formatFullDate(_currentTask.deadline),
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-            // Description Section
-            Text(
-              'Сипаттамасы',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Text(
-                _currentTask.description.isNotEmpty
-                    ? _currentTask.description
-                    : 'Қосымша жазбалар енгізілмеген.',
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                  color: _currentTask.description.isNotEmpty
-                      ? colorScheme.onSurface
-                      : colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Checklist / Subtasks Section
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Ішкі тапсырмалар (Чек-лист)',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '$subtasksDoneCount / $totalSubtasks',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            // Progress Bar
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: LinearProgressIndicator(
-                value: subtaskProgress,
-                minHeight: 8,
-                backgroundColor: colorScheme.surfaceContainerHighest,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  subtaskProgress == 1.0 ? const Color(0xFF10B981) : colorScheme.primary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            if (_currentTask.subtasks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Center(
-                  child: Text(
-                    'Ішкі қадамдар қосылмаған',
-                    style: TextStyle(color: colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              )
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: _currentTask.subtasks.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final subtask = _currentTask.subtasks[index];
-                  return InkWell(
-                    onTap: () => _toggleSubtask(index),
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  // Description Card
+                  if (_currentTask.description.isNotEmpty) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: subtask.isDone
-                            ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.3)
-                            : colorScheme.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(14),
+                        color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                          color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
                         ),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            subtask.isDone
-                                ? Icons.check_box_rounded
-                                : Icons.check_box_outline_blank_rounded,
-                            color: subtask.isDone ? colorScheme.primary : colorScheme.outline,
+                          Text(
+                            'Сипаттама',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                            ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              subtask.title,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                decoration:
-                                    subtask.isDone ? TextDecoration.lineThrough : null,
-                                color: subtask.isDone
-                                    ? colorScheme.onSurfaceVariant
-                                    : colorScheme.onSurface,
-                              ),
+                          const SizedBox(height: 8),
+                          Text(
+                            _currentTask.description,
+                            style: TextStyle(
+                              fontSize: 14,
+                              height: 1.5,
+                              color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  );
-                },
+                    const SizedBox(height: 16),
+                  ],
+
+                  // Subtasks Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Ішкі тапсырмалар',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                            if (totalSubtasks > 0)
+                              Text(
+                                '$completedSubtasks/$totalSubtasks',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF4F46E5),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        if (_currentTask.subtasks.isEmpty)
+                          Text(
+                            'Ішкі тапсырмалар қосылмаған',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            ),
+                          )
+                        else
+                          ...List.generate(_currentTask.subtasks.length, (index) {
+                            final sub = _currentTask.subtasks[index];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 10),
+                              child: InkWell(
+                                onTap: () => _toggleSubtask(index),
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 180),
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: sub.isDone
+                                              ? const Color(0xFF10B981)
+                                              : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: sub.isDone
+                                                ? const Color(0xFF10B981)
+                                                : (isDark
+                                                    ? const Color(0xFF64748B)
+                                                    : const Color(0xFFCBD5E1)),
+                                            width: 1.8,
+                                          ),
+                                        ),
+                                        child: sub.isDone
+                                            ? const Icon(
+                                                Icons.check_rounded,
+                                                size: 15,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          sub.title,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: sub.isDone
+                                                ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
+                                                : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                            decoration: sub.isDone ? TextDecoration.lineThrough : null,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-          ],
-        ),
+            ),
+          ),
+
+          // Bottom Action Buttons
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
+              border: Border(
+                top: BorderSide(
+                  color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                ),
+              ),
+            ),
+            child: Row(
+              children: [
+                // Edit button
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: FilledButton.icon(
+                      onPressed: _editTask,
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      label: const Text(
+                        'Өңдеу',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Delete button
+                Expanded(
+                  child: SizedBox(
+                    height: 50,
+                    child: FilledButton.icon(
+                      onPressed: _confirmDelete,
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFEF4444)),
+                      label: const Text(
+                        'Жою',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFEF4444),
+                        ),
+                      ),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFEF2F2),
+                        foregroundColor: const Color(0xFFEF4444),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
