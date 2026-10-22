@@ -12,7 +12,7 @@ enum TaskPriority {
       case TaskPriority.medium:
         return 'Орташа';
       case TaskPriority.high:
-        return 'Шұғыл';
+        return 'Жоғары';
     }
   }
 
@@ -21,20 +21,20 @@ enum TaskPriority {
       case TaskPriority.low:
         return const Color(0xFF10B981); // Emerald Green
       case TaskPriority.medium:
-        return const Color(0xFFF59E0B); // Amber Orange
+        return const Color(0xFFD97706); // Amber/Orange
       case TaskPriority.high:
-        return const Color(0xFFEF4444); // Rose Red
+        return const Color(0xFFEF4444); // Red
     }
   }
 
   Color get backgroundColor {
     switch (this) {
       case TaskPriority.low:
-        return const Color(0xFFECFDF5);
+        return const Color(0xFFDCFCE7);
       case TaskPriority.medium:
-        return const Color(0xFFFFFBEB);
+        return const Color(0xFFFEF3C7);
       case TaskPriority.high:
-        return const Color(0xFFFEF2F2);
+        return const Color(0xFFFEE2E2);
     }
   }
 
@@ -120,85 +120,77 @@ class Task {
   static List<String> get availableSubjects => const [
         'Мобильді әзірлеу',
         'Деректер қоры',
+        'Дискретті математика',
+        'Ағылшын тілі',
         'Жоғары математика',
         'Алгоритмдер мен құрылымдар',
-        'Компьютерлік желілер',
-        'Жасанды интеллект',
-        'Ағылшын тілі',
       ];
 
   static List<Task> get sampleTasks {
-    final now = DateTime.now();
     return [
       Task(
         id: 'task-1',
-        title: 'Flutter қосымшасының UI интерфейсін тапсыру',
-        subject: 'Мобильді әзірлеу',
-        deadline: DateTime(now.year, now.month, now.day, 18, 0),
-        priority: TaskPriority.high,
+        title: 'Зертханалық жұмыс №4',
+        subject: 'Деректер қоры',
+        deadline: DateTime(2026, 10, 23, 12, 0),
+        priority: TaskPriority.medium,
         isCompleted: false,
-        description:
-            'UniTask қосымшасының басты экраны, күнтізбесі мен тапсырма қосу беттерін толық әзірлеп, репозиторийге жүктеу.',
+        description: 'PostgreSQL деректер қорында индекстер құру және транзакцияларды оңтайландыру.',
         subtasks: [
-          SubTask(id: 'st-1', title: 'Figma макеті бойынша компоненттер жасау', isDone: true),
-          SubTask(id: 'st-2', title: 'Material 3 тақырыбын баптау', isDone: true),
-          SubTask(id: 'st-3', title: 'Фильтрлер мен іздеуді тестілеу', isDone: false),
+          SubTask(id: 'st-1', title: 'ER диаграммасын құру', isDone: true),
+          SubTask(id: 'st-2', title: 'SQL сұраныстар жазу', isDone: false),
         ],
       ),
       Task(
         id: 'task-2',
-        title: 'SQL күрделі сұраныстары бойынша зертханалық жұмыс',
-        subject: 'Деректер қоры',
-        deadline: DateTime(now.year, now.month, now.day + 1, 23, 59),
-        priority: TaskPriority.medium,
+        title: 'Мобильді қосымша ТТ',
+        subject: 'Мобильді әзірлеу',
+        deadline: DateTime(2026, 10, 22, 18, 0),
+        priority: TaskPriority.high,
         isCompleted: false,
         description:
-            'PostgreSQL-де JOIN, GROUP BY және Indexing қолданып, үлкен кестелерге оңтайландырылған сұраныстар жазу.',
+            'UniTask қосымшасының техникалық тапсырмасын дайындау. Негізгі экрандар мен қолданушы талаптарын сипаттау.',
         subtasks: [
-          SubTask(id: 'st-4', title: 'ER диаграммасын тексеру', isDone: true),
-          SubTask(id: 'st-5', title: 'EXPLAIN ANALYZE арқылы жылдамдықты тексеру', isDone: false),
+          SubTask(id: 'st-3', title: 'Талаптарды анықтау', isDone: true),
+          SubTask(id: 'st-4', title: 'Экрандар құрылымын жазу', isDone: false),
+          SubTask(id: 'st-5', title: 'ТТ құжатын тапсыру', isDone: false),
         ],
       ),
       Task(
         id: 'task-3',
-        title: 'Дифференциалдық теңдеулер есептерін шығару',
-        subject: 'Жоғары математика',
-        deadline: DateTime(now.year, now.month, now.day + 2, 14, 30),
+        title: 'Эссе жазу',
+        subject: 'Ағылшын тілі',
+        deadline: DateTime(2026, 10, 20, 15, 0),
         priority: TaskPriority.low,
-        isCompleted: false,
-        description:
-            'Коши есебі және 2-ретті сызықты біртектес емес теңдеулерді Лагранж әдісімен шығару (№14 нұсқа).',
+        isCompleted: true,
+        description: 'Academic Writing тақырыбы бойынша 250 сөзден тұратын эссе жазу.',
         subtasks: [
-          SubTask(id: 'st-6', title: '1-5 есептерді шығару', isDone: false),
-          SubTask(id: 'st-7', title: 'Таза дәптерге көшіру', isDone: false),
+          SubTask(id: 'st-6', title: 'Тезисті таңдау', isDone: true),
+          SubTask(id: 'st-7', title: 'Грамматикасын тексеру', isDone: true),
         ],
       ),
       Task(
         id: 'task-4',
-        title: 'Ағаштар мен графтар бойынша Midterm емтиханы',
-        subject: 'Алгоритмдер мен құрылымдар',
-        deadline: DateTime(now.year, now.month, now.day, 10, 0),
-        priority: TaskPriority.high,
+        title: 'Есептер жинағы',
+        subject: 'Дискретті математика',
+        deadline: DateTime(2026, 10, 21, 10, 0),
+        priority: TaskPriority.medium,
         isCompleted: true,
-        description:
-            'DFS, BFS, Дейкстра алгоритмдері және қызыл-қара ағаштарды баланстау сұрақтарына дайындық.',
+        description: 'Графтар теориясы және комбинаторика есептерін шығару.',
         subtasks: [
-          SubTask(id: 'st-8', title: 'Дәріс конспектілерін қайталау', isDone: true),
-          SubTask(id: 'st-9', title: 'LeetCode-та 5 есеп талдау', isDone: true),
+          SubTask(id: 'st-8', title: '1-10 есептерді шығару', isDone: true),
         ],
       ),
       Task(
         id: 'task-5',
-        title: 'Cisco Packet Tracer желі топологиясын құру',
-        subject: 'Компьютерлік желілер',
-        deadline: DateTime(now.year, now.month, now.day + 3, 20, 0),
-        priority: TaskPriority.medium,
+        title: 'Дәріс конспектісі',
+        subject: 'Мобильді әзірлеу',
+        deadline: DateTime(2026, 10, 19, 14, 0),
+        priority: TaskPriority.low,
         isCompleted: true,
-        description:
-            'VLAN, OSPF бағыттау хаттамасын және DHCP серверін баптап, жұмыс есебін PDF ретінде өткізу.',
+        description: 'Flutter Widget lifecycle және State management тақырыптары бойынша конспект.',
         subtasks: [
-          SubTask(id: 'st-10', title: 'IP адресация кестесін құру', isDone: true),
-          SubTask(id: 'st-11', title: 'Маршрутизаторларды баптау', isDone: true),
+          SubTask(id: 'st-9', title: 'Негізгі ұғымдарды жазу', isDone: true),
         ],
       ),
     ];
