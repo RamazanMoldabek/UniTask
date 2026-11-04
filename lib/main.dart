@@ -8,6 +8,8 @@ import 'screens/search_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'services/api_service.dart';
+import 'services/database_helper.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -141,49 +143,61 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
-  late List<Task> _tasks;
+  List<Task> _tasks = [];
 
   @override
   void initState() {
     super.initState();
-    _tasks = Task.sampleTasks;
+    _loadTasks();
   }
 
-  void _handleToggleTask(Task task) {
-    setState(() {
-      final index = _tasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        _tasks[index] = task.copyWith(isCompleted: !task.isCompleted);
+  Future<void> _loadTasks() async {
+    try {
+      final tasks = await ApiService.instance.fetchTasks();
+      if (mounted) {
+        setState(() {
+          _tasks = tasks;
+        });
       }
-    });
+    } catch (_) {
+      try {
+        final tasks = await DatabaseHelper.instance.getTasks();
+        if (mounted) {
+          setState(() {
+            _tasks = tasks;
+          });
+        }
+      } catch (_) {}
+    }
   }
 
-  void _handleAddTask(Task task) {
-    setState(() {
-      _tasks.insert(0, task);
-    });
+  Future<void> _handleToggleTask(Task task) async {
+    if (task.id.isEmpty) return;
+    try {
+      final updated = task.copyWith(isCompleted: !task.isCompleted);
+      await ApiService.instance.updateTask(updated);
+      await _loadTasks();
+    } catch (_) {}
   }
 
-  void _handleUpdateTask(Task updatedTask) {
-    setState(() {
-      final index = _tasks.indexWhere((t) => t.id == updatedTask.id);
-      if (index != -1) {
-        _tasks[index] = updatedTask;
-      }
-    });
+  Future<void> _handleAddTask(Task task) async {
+    await _loadTasks();
   }
 
-  void _handleDeleteTask(String taskId) {
-    setState(() {
-      _tasks.removeWhere((t) => t.id == taskId);
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Тапсырма сәтті жойылды'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+  Future<void> _handleUpdateTask(Task updatedTask) async {
+    try {
+      await ApiService.instance.updateTask(updatedTask);
+      await _loadTasks();
+    } catch (_) {}
+  }
+
+  Future<void> _handleDeleteTask(dynamic taskId) async {
+    if (taskId != null) {
+      try {
+        await ApiService.instance.deleteTask(taskId.toString());
+        await _loadTasks();
+      } catch (_) {}
+    }
   }
 
   @override

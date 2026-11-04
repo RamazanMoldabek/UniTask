@@ -8,7 +8,7 @@ class CalendarScreen extends StatefulWidget {
   final List<Task> tasks;
   final Function(Task task) onToggleTask;
   final Function(Task task) onUpdateTask;
-  final Function(String id) onDeleteTask;
+  final Function(dynamic id) onDeleteTask;
   final Function(Task task) onAddTask;
 
   const CalendarScreen({
@@ -39,11 +39,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   List<Task> _getTasksForSelectedDate() {
-    return widget.tasks.where((t) => _isSameDay(t.deadline, _selectedDate)).toList();
+    return widget.tasks.where((t) => _isSameDay(t.deadlineDateTime, _selectedDate)).toList();
   }
 
   bool _hasTasksOnDate(DateTime date) {
-    return widget.tasks.any((t) => _isSameDay(t.deadline, date));
+    return widget.tasks.any((t) => _isSameDay(t.deadlineDateTime, date));
   }
 
   String _getMonthName(int month) {

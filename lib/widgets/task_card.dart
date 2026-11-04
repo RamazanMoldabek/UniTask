@@ -5,12 +5,14 @@ class TaskCard extends StatelessWidget {
   final Task task;
   final VoidCallback onToggle;
   final VoidCallback onTap;
+  final VoidCallback? onDelete;
 
   const TaskCard({
     super.key,
     required this.task,
     required this.onToggle,
     required this.onTap,
+    this.onDelete,
   });
 
   String _formatDate(DateTime dt) {
@@ -37,7 +39,7 @@ class TaskCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
+    Widget cardContent = Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E293B) : Colors.white,
@@ -111,12 +113,18 @@ class TaskCard extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color:
+                              isDark ? Colors.white : const Color(0xFF0F172A),
+                          decoration: task.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        task.subject,
+                        task.subject.isNotEmpty
+                            ? task.subject
+                            : (task.subjectTitle ?? ''),
                         style: TextStyle(
                           fontSize: 13,
                           color: isDark
@@ -156,7 +164,7 @@ class TaskCard extends StatelessWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              _formatDate(task.deadline),
+                              _formatDate(task.deadlineDateTime),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w500,
@@ -177,14 +185,14 @@ class TaskCard extends StatelessWidget {
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: isDark
-                        ? task.priority.color.withValues(alpha: 0.2)
-                        : task.priority.backgroundColor,
+                        ? task.priorityEnum.color.withValues(alpha: 0.2)
+                        : task.priorityEnum.backgroundColor,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    task.priority.label,
+                    task.priority,
                     style: TextStyle(
-                      color: task.priority.color,
+                      color: task.priorityEnum.color,
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
                     ),
@@ -196,5 +204,76 @@ class TaskCard extends StatelessWidget {
         ),
       ),
     );
+
+    if (onDelete != null) {
+      return Dismissible(
+        key: Key('task_${task.id}_${task.title}'),
+        direction: DismissDirection.endToStart,
+        background: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEF4444),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                'Жою',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(width: 8),
+              Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),
+            ],
+          ),
+        ),
+        confirmDismiss: (direction) async {
+          return await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                  title: const Text(
+                    'Тапсырманы жою',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                  ),
+                  content: const Text(
+                    'Бұл тапсырманы шынымен жойғыңыз келе ме?',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Болдырмау',
+                          style: TextStyle(color: Color(0xFF64748B))),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFEF4444),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Жою'),
+                    ),
+                  ],
+                ),
+              ) ??
+              false;
+        },
+        onDismissed: (_) => onDelete!(),
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 }

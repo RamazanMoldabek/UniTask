@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/subject.dart';
 import '../models/task.dart';
+import '../services/api_service.dart';
+import '../services/database_helper.dart';
+
+typedef AddTaskBottomSheet = AddTaskSheet;
 
 class AddTaskSheet extends StatefulWidget {
   final Task? taskToEdit;
@@ -35,34 +40,79 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
 
-  late List<String> _subjects;
-  late String _selectedSubject;
+  List<Subject> _subjects = [];
+  Subject? _selectedSubject;
+  bool _isLoadingSubjects = true;
+  bool _isSubmitting = false;
+
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
   late TaskPriority _selectedPriority;
 
+  static const List<Subject> _fallbackSubjects = [
+    Subject(id: 1, title: 'Мобильді әзірлеу', colorHex: '#4F46E5'),
+    Subject(id: 2, title: 'Деректер қоры', colorHex: '#0EA5E9'),
+    Subject(id: 3, title: 'Ағылшын тілі', colorHex: '#10B981'),
+    Subject(id: 4, title: 'Жалпы', colorHex: '#8B5CF6'),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _subjects = List<String>.from(Task.availableSubjects);
     final edit = widget.taskToEdit;
     if (edit != null) {
       _titleController = TextEditingController(text: edit.title);
-      _descriptionController = TextEditingController(text: edit.description);
-      _selectedSubject = edit.subject;
-      if (!_subjects.contains(_selectedSubject)) {
-        _subjects.add(_selectedSubject);
-      }
-      _selectedDate = edit.deadline;
-      _selectedTime = TimeOfDay.fromDateTime(edit.deadline);
-      _selectedPriority = edit.priority;
+      _descriptionController =
+          TextEditingController(text: edit.description ?? '');
+      _selectedDate = edit.deadlineDateTime;
+      _selectedTime = TimeOfDay.fromDateTime(edit.deadlineDateTime);
+      _selectedPriority = edit.priorityEnum;
     } else {
       _titleController = TextEditingController();
       _descriptionController = TextEditingController();
-      _selectedSubject = _subjects.first;
       _selectedDate = null;
       _selectedTime = null;
       _selectedPriority = TaskPriority.medium;
+    }
+
+    _loadSubjects();
+  }
+
+  Future<void> _loadSubjects() async {
+    try {
+      final list = await DatabaseHelper.instance.getSubjects();
+      if (!mounted) return;
+
+      setState(() {
+        _subjects = list.isNotEmpty ? list : _fallbackSubjects;
+        _isLoadingSubjects = false;
+        _resolveSelectedSubject();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _subjects = _fallbackSubjects;
+        _isLoadingSubjects = false;
+        _resolveSelectedSubject();
+      });
+    }
+  }
+
+  void _resolveSelectedSubject() {
+    final edit = widget.taskToEdit;
+    if (edit != null) {
+      final match = _subjects.firstWhere(
+        (s) =>
+            (edit.subjectId != null && s.id == edit.subjectId) ||
+            s.title.toLowerCase() ==
+                (edit.subjectTitle ?? edit.subject).toLowerCase(),
+        orElse: () => _subjects.isNotEmpty
+            ? _subjects.first
+            : const Subject(id: 1, title: 'Жалпы', colorHex: '#4F46E5'),
+      );
+      _selectedSubject = match;
+    } else if (_subjects.isNotEmpty) {
+      _selectedSubject = _subjects.first;
     }
   }
 
@@ -134,49 +184,165 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
 
   void _showAddSubjectDialog() {
     final textController = TextEditingController();
+    String selectedHex = '#4F46E5';
+    final colors = [
+      '#4F46E5', // Indigo
+      '#0EA5E9', // Sky blue
+      '#10B981', // Emerald
+      '#F59E0B', // Amber
+      '#EC4899', // Pink
+      '#8B5CF6', // Purple
+    ];
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Жаңа пән қосу', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: TextField(
-          controller: textController,
-          autofocus: true,
-          decoration: InputDecoration(
-            hintText: 'Пән атауын енгізіңіз',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Болдырмау', style: TextStyle(color: Color(0xFF64748B))),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF4F46E5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final isDark = Theme.of(context).brightness == Brightness.dark;
+          return AlertDialog(
+            backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Text(
+              'Жаңа пән қосу',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+                color: isDark ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
-            onPressed: () {
-              final newSubject = textController.text.trim();
-              if (newSubject.isNotEmpty) {
-                setState(() {
-                  if (!_subjects.contains(newSubject)) {
-                    _subjects.add(newSubject);
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: textController,
+                  autofocus: true,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Пән атауын енгізіңіз',
+                    hintStyle: TextStyle(
+                      fontSize: 14,
+                      color: isDark
+                          ? const Color(0xFF64748B)
+                          : const Color(0xFF94A3B8),
+                    ),
+                    filled: true,
+                    fillColor: isDark
+                        ? const Color(0xFF0F172A)
+                        : const Color(0xFFF8FAFC),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Түсін таңдаңыз:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: isDark
+                        ? const Color(0xFFCBD5E1)
+                        : const Color(0xFF475569),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: colors.map((hex) {
+                    final colorVal = Color(
+                        int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+                    final isPicked = selectedHex == hex;
+                    return GestureDetector(
+                      onTap: () {
+                        setDialogState(() {
+                          selectedHex = hex;
+                        });
+                      },
+                      child: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: colorVal,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isPicked ? Colors.white : Colors.transparent,
+                            width: 2.5,
+                          ),
+                          boxShadow: isPicked
+                              ? [
+                                  BoxShadow(
+                                    color: colorVal.withValues(alpha: 0.5),
+                                    blurRadius: 6,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : [],
+                        ),
+                        child: isPicked
+                            ? const Icon(Icons.check_rounded,
+                                color: Colors.white, size: 18)
+                            : null,
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Болдырмау',
+                    style: TextStyle(color: Color(0xFF64748B))),
+              ),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  final newTitle = textController.text.trim();
+                  if (newTitle.isNotEmpty) {
+                    final subject = Subject(
+                      title: newTitle,
+                      colorHex: selectedHex,
+                    );
+                    int? newId;
+                    try {
+                      newId =
+                          await DatabaseHelper.instance.insertSubject(subject);
+                    } catch (_) {}
+                    final createdSubject = subject.copyWith(id: newId ?? 999);
+
+                    setState(() {
+                      _subjects.add(createdSubject);
+                      _selectedSubject = createdSubject;
+                    });
+                    if (ctx.mounted) {
+                      Navigator.pop(ctx);
+                    }
                   }
-                  _selectedSubject = newSubject;
-                });
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Қосу'),
-          ),
-        ],
+                },
+                child: const Text('Қосу'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
-  void _save() {
+  Future<void> _save() async {
     if (_titleController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -187,32 +353,83 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       return;
     }
 
+    setState(() {
+      _isSubmitting = true;
+    });
+
     final date = _selectedDate ?? DateTime.now().add(const Duration(days: 1));
     final time = _selectedTime ?? const TimeOfDay(hour: 18, minute: 0);
-    final deadline = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    final deadline =
+        DateTime(date.year, date.month, date.day, time.hour, time.minute);
 
-    final isEdit = widget.taskToEdit != null;
-    final task = Task(
-      id: widget.taskToEdit?.id ?? 'task-${DateTime.now().millisecondsSinceEpoch}',
+    final isEdit =
+        widget.taskToEdit != null && widget.taskToEdit!.id.isNotEmpty;
+    final subjectTitle = _selectedSubject?.title ?? 'Жалпы';
+
+    final taskToSave = Task(
+      id: isEdit ? widget.taskToEdit!.id : '',
       title: _titleController.text.trim(),
-      subject: _selectedSubject,
-      deadline: deadline,
-      priority: _selectedPriority,
+      description: _descriptionController.text.trim().isEmpty
+          ? null
+          : _descriptionController.text.trim(),
+      subject: subjectTitle,
+      subjectId: _selectedSubject?.id,
+      subjectTitle: subjectTitle,
+      deadline: deadline.toIso8601String(),
+      priority: _selectedPriority.label,
       isCompleted: widget.taskToEdit?.isCompleted ?? false,
-      description: _descriptionController.text.trim(),
-      subtasks: widget.taskToEdit?.subtasks ?? [],
+      isFavorite: widget.taskToEdit?.isFavorite ?? false,
+      subtasks: widget.taskToEdit?.subtasks ?? const [],
     );
 
-    widget.onSave(task);
-    Navigator.of(context).pop(task);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(isEdit ? 'Өзгерістер сақталды' : 'Тапсырма сәтті қосылды'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    try {
+      Task savedTask;
+      if (isEdit) {
+        savedTask = await ApiService.instance.updateTask(taskToSave);
+      } else {
+        savedTask = await ApiService.instance.createTask(taskToSave);
+      }
+
+      // Also persist to local database as cache if available
+      try {
+        if (isEdit) {
+          await DatabaseHelper.instance.updateTask(savedTask);
+        } else {
+          await DatabaseHelper.instance.insertTask(savedTask);
+        }
+      } catch (_) {}
+
+      widget.onSave(savedTask);
+      navigator.pop(savedTask);
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+              isEdit ? 'Өзгерістер сақталды' : 'Тапсырма сәтті қосылды'),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Қате орын алды: $e'),
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
   }
 
   String _formatDateDisplay() {
@@ -233,7 +450,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isEdit = widget.taskToEdit != null;
+    final isEdit =
+        widget.taskToEdit != null && widget.taskToEdit!.id.isNotEmpty;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
@@ -256,7 +474,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFE2E8F0),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -268,7 +488,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    isEdit ? 'Тапсырманы өңдеу' : 'Жаңа тапсырма',
+                    isEdit ? 'Тапсырманы өңдеу' : 'Тапсырма жасау',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -280,7 +500,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                     icon: Icon(
                       Icons.close_rounded,
                       size: 20,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                      color: isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -293,12 +515,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _titleController,
+                enabled: !_isSubmitting,
                 style: TextStyle(
                   fontSize: 14,
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
@@ -307,79 +532,118 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   hintText: 'Тапсырма атауын енгізіңіз',
                   hintStyle: TextStyle(
                     fontSize: 14,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  fillColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    borderSide: const BorderSide(
+                        color: Color(0xFF4F46E5), width: 1.5),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
 
-              // Subject
+              // Subject selection
               Text(
                 'Пән',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-                  ),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedSubject,
-                    isExpanded: true,
-                    icon: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
-                    ),
-                    items: _subjects.map((sub) {
-                      return DropdownMenuItem<String>(
-                        value: sub,
-                        child: Text(
-                          sub,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? Colors.white : const Color(0xFF0F172A),
-                          ),
+              _isLoadingSubjects
+                  ? const Center(
+                      child: Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: CircularProgressIndicator(
+                          color: Color(0xFF4F46E5)),
+                    ))
+                  : Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      decoration: BoxDecoration(
+                        color:
+                            isDark ? const Color(0xFF1E293B) : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isDark
+                              ? const Color(0xFF334155)
+                              : const Color(0xFFE2E8F0),
                         ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() {
-                          _selectedSubject = val;
-                        });
-                      }
-                    },
-                  ),
-                ),
-              ),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<Subject>(
+                          value: _selectedSubject,
+                          isExpanded: true,
+                          hint: const Text('Пәнді таңдаңыз'),
+                          icon: Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
+                          ),
+                          items: _subjects.map((sub) {
+                            return DropdownMenuItem<Subject>(
+                              value: sub,
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: BoxDecoration(
+                                      color: sub.color,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    sub.title,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: isDark
+                                          ? Colors.white
+                                          : const Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: _isSubmitting
+                              ? null
+                              : (val) {
+                                  if (val != null) {
+                                    setState(() {
+                                      _selectedSubject = val;
+                                    });
+                                  }
+                                },
+                        ),
+                      ),
+                    ),
               const SizedBox(height: 6),
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton(
-                  onPressed: _showAddSubjectDialog,
+                  onPressed: _isSubmitting ? null : _showAddSubjectDialog,
                   style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     minimumSize: const Size(50, 30),
@@ -410,21 +674,28 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF334155),
                           ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
-                          onTap: _pickDate,
+                          onTap: _isSubmitting ? null : _pickDate,
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
                             height: 48,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
                               ),
                             ),
                             child: Row(
@@ -435,14 +706,20 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: _selectedDate == null
-                                        ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
-                                        : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                        ? (isDark
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8))
+                                        : (isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
                                   ),
                                 ),
                                 Icon(
                                   Icons.calendar_today_outlined,
                                   size: 16,
-                                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
                                 ),
                               ],
                             ),
@@ -462,21 +739,28 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF334155),
                           ),
                         ),
                         const SizedBox(height: 8),
                         InkWell(
-                          onTap: _pickTime,
+                          onTap: _isSubmitting ? null : _pickTime,
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
                             height: 48,
-                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+                              color: isDark
+                                  ? const Color(0xFF1E293B)
+                                  : Colors.white,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                                color: isDark
+                                    ? const Color(0xFF334155)
+                                    : const Color(0xFFE2E8F0),
                               ),
                             ),
                             child: Row(
@@ -487,14 +771,20 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: _selectedTime == null
-                                        ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
-                                        : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                                        ? (isDark
+                                            ? const Color(0xFF64748B)
+                                            : const Color(0xFF94A3B8))
+                                        : (isDark
+                                            ? Colors.white
+                                            : const Color(0xFF0F172A)),
                                   ),
                                 ),
                                 Icon(
                                   Icons.access_time_rounded,
                                   size: 16,
-                                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                                  color: isDark
+                                      ? const Color(0xFF64748B)
+                                      : const Color(0xFF94A3B8),
                                 ),
                               ],
                             ),
@@ -513,21 +803,27 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
               Container(
                 height: 44,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF1E293B) : const Color(0xFFF1F5F9),
+                  color: isDark
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFFF1F5F9),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 padding: const EdgeInsets.all(4),
                 child: Row(
                   children: [
-                    _buildPrioritySegment(TaskPriority.high, 'Жоғары', isDark),
-                    _buildPrioritySegment(TaskPriority.medium, 'Орташа', isDark),
+                    _buildPrioritySegment(
+                        TaskPriority.high, 'Жоғары', isDark),
+                    _buildPrioritySegment(
+                        TaskPriority.medium, 'Орташа', isDark),
                     _buildPrioritySegment(TaskPriority.low, 'Төмен', isDark),
                   ],
                 ),
@@ -540,12 +836,15 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155),
+                  color: isDark
+                      ? const Color(0xFFCBD5E1)
+                      : const Color(0xFF334155),
                 ),
               ),
               const SizedBox(height: 8),
               TextField(
                 controller: _descriptionController,
+                enabled: !_isSubmitting,
                 maxLines: 3,
                 style: TextStyle(
                   fontSize: 14,
@@ -555,20 +854,26 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   hintText: 'Тапсырма туралы қосымша мәлімет...',
                   hintStyle: TextStyle(
                     fontSize: 14,
-                    color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                    color: isDark
+                        ? const Color(0xFF64748B)
+                        : const Color(0xFF94A3B8),
                   ),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+                  fillColor:
+                      isDark ? const Color(0xFF1E293B) : Colors.white,
                   contentPadding: const EdgeInsets.all(14),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
                     borderSide: BorderSide(
-                      color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                      color: isDark
+                          ? const Color(0xFF334155)
+                          : const Color(0xFFE2E8F0),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.5),
+                    borderSide: const BorderSide(
+                        color: Color(0xFF4F46E5), width: 1.5),
                   ),
                 ),
               ),
@@ -579,16 +884,27 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 width: double.infinity,
                 height: 52,
                 child: FilledButton(
-                  onPressed: _save,
+                  onPressed: _isSubmitting ? null : _save,
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF4F46E5),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(
-                    isEdit ? 'Өзгерістерді сақтау' : 'Сақтау',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
+                  child: _isSubmitting
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.5,
+                          ),
+                        )
+                      : Text(
+                          isEdit ? 'Өзгерістерді сақтау' : 'Сақтау',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
             ],
@@ -598,15 +914,18 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     );
   }
 
-  Widget _buildPrioritySegment(TaskPriority priority, String label, bool isDark) {
+  Widget _buildPrioritySegment(
+      TaskPriority priority, String label, bool isDark) {
     final isSelected = _selectedPriority == priority;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _selectedPriority = priority;
-          });
-        },
+        onTap: _isSubmitting
+            ? null
+            : () {
+                setState(() {
+                  _selectedPriority = priority;
+                });
+              },
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -644,7 +963,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                   color: isSelected
                       ? const Color(0xFF4F46E5)
-                      : (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+                      : (isDark
+                          ? const Color(0xFF94A3B8)
+                          : const Color(0xFF64748B)),
                 ),
               ),
             ],

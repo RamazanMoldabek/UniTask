@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../services/database_helper.dart';
 import 'add_task_sheet.dart';
 
 class TaskDetailScreen extends StatefulWidget {
   final Task task;
   final Function(Task updatedTask) onUpdate;
-  final Function(String taskId) onDelete;
+  final Function(dynamic taskId) onDelete;
 
   const TaskDetailScreen({
     super.key,
@@ -27,9 +28,17 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
     _currentTask = widget.task;
   }
 
-  void _toggleSubtask(int index) {
-    final newSubtasks = _currentTask.subtasks.map((s) => s.copyWith()).toList();
-    newSubtasks[index].isDone = !newSubtasks[index].isDone;
+  Future<void> _toggleSubtask(int index) async {
+    final sub = _currentTask.subtasks[index];
+    final updatedSub = sub.copyWith(isCompleted: !sub.isCompleted);
+    if (updatedSub.id != null) {
+      await DatabaseHelper.instance.toggleSubtaskCompletion(
+        updatedSub.id!,
+        updatedSub.isCompleted,
+      );
+    }
+    final newSubtasks = List<Subtask>.from(_currentTask.subtasks);
+    newSubtasks[index] = updatedSub;
 
     final updated = _currentTask.copyWith(subtasks: newSubtasks);
     setState(() {
@@ -83,10 +92,20 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () {
+            onPressed: () async {
               Navigator.of(ctx).pop();
+              if (_currentTask.id.isNotEmpty) {
+                final intId = int.tryParse(_currentTask.id);
+                if (intId != null) {
+                  try {
+                    await DatabaseHelper.instance.deleteTask(intId);
+                  } catch (_) {}
+                }
+              }
               widget.onDelete(_currentTask.id);
-              Navigator.of(context).pop();
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
             },
             child: const Text('Жою'),
           ),
@@ -119,7 +138,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final completedSubtasks =
-        _currentTask.subtasks.where((s) => s.isDone).length;
+        _currentTask.subtasks.where((s) => s.isCompleted).length;
     final totalSubtasks = _currentTask.subtasks.length;
 
     return Scaffold(
@@ -150,13 +169,21 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
               color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
             ),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'edit') {
                 _editTask();
               } else if (value == 'delete') {
                 _confirmDelete();
               } else if (value == 'toggle') {
                 final updated = _currentTask.copyWith(isCompleted: !_currentTask.isCompleted);
+                if (updated.id.isNotEmpty) {
+                  final intId = int.tryParse(updated.id);
+                  if (intId != null) {
+                    try {
+                      await DatabaseHelper.instance.toggleTaskCompletion(intId, updated.isCompleted);
+                    } catch (_) {}
+                  }
+                }
                 setState(() => _currentTask = updated);
                 widget.onUpdate(updated);
               }
@@ -244,15 +271,15 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _currentTask.priority.backgroundColor,
+                          color: _currentTask.priorityEnum.backgroundColor,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _currentTask.priority.label,
+                          _currentTask.priority,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: _currentTask.priority.color,
+                            color: _currentTask.priorityEnum.color,
                           ),
                         ),
                       ),
@@ -298,7 +325,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _formatFullDate(_currentTask.deadline),
+                              _formatFullDate(_currentTask.deadlineDateTime),
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
@@ -313,7 +340,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                   const SizedBox(height: 16),
 
                   // Description Card
-                  if (_currentTask.description.isNotEmpty) ...[
+                  if ((_currentTask.description ?? '').isNotEmpty) ...[
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(16),
@@ -337,7 +364,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            _currentTask.description,
+                            _currentTask.description ?? '',
                             style: TextStyle(
                               fontSize: 14,
                               height: 1.5,
@@ -412,12 +439,12 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                         width: 22,
                                         height: 22,
                                         decoration: BoxDecoration(
-                                          color: sub.isDone
+                                          color: sub.isCompleted
                                               ? const Color(0xFF10B981)
                                               : Colors.transparent,
                                           borderRadius: BorderRadius.circular(6),
                                           border: Border.all(
-                                            color: sub.isDone
+                                            color: sub.isCompleted
                                                 ? const Color(0xFF10B981)
                                                 : (isDark
                                                     ? const Color(0xFF64748B)
@@ -425,7 +452,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                             width: 1.8,
                                           ),
                                         ),
-                                        child: sub.isDone
+                                        child: sub.isCompleted
                                             ? const Icon(
                                                 Icons.check_rounded,
                                                 size: 15,
@@ -439,10 +466,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> {
                                           sub.title,
                                           style: TextStyle(
                                             fontSize: 14,
-                                            color: sub.isDone
+                                            color: sub.isCompleted
                                                 ? (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8))
                                                 : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                                            decoration: sub.isDone ? TextDecoration.lineThrough : null,
+                                            decoration: sub.isCompleted ? TextDecoration.lineThrough : null,
                                           ),
                                         ),
                                       ),
