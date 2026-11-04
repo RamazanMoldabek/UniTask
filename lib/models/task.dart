@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'subtask.dart';
+
+export 'subtask.dart';
+
+typedef SubTask = Subtask;
 
 enum TaskPriority {
   low,
@@ -13,6 +18,18 @@ enum TaskPriority {
         return 'Орташа';
       case TaskPriority.high:
         return 'Жоғары';
+    }
+  }
+
+  static TaskPriority fromString(String val) {
+    switch (val) {
+      case 'Жоғары':
+        return TaskPriority.high;
+      case 'Төмен':
+        return TaskPriority.low;
+      case 'Орташа':
+      default:
+        return TaskPriority.medium;
     }
   }
 
@@ -50,149 +67,186 @@ enum TaskPriority {
   }
 }
 
-class SubTask {
-  final String id;
-  String title;
-  bool isDone;
-
-  SubTask({
-    required this.id,
-    required this.title,
-    this.isDone = false,
-  });
-
-  SubTask copyWith({
-    String? id,
-    String? title,
-    bool? isDone,
-  }) {
-    return SubTask(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      isDone: isDone ?? this.isDone,
-    );
-  }
-}
-
 class Task {
   final String id;
   final String title;
   final String subject;
-  final DateTime deadline;
-  final TaskPriority priority;
+  final String deadline;
+  final String priority;
   final bool isCompleted;
-  final String description;
-  final List<SubTask> subtasks;
 
-  Task({
-    required this.id,
+  // Additional optional fields for compatibility with UI and SQLite
+  final String? description;
+  final int? subjectId;
+  final String? subjectTitle;
+  final bool isFavorite;
+  final List<Subtask> subtasks;
+
+  const Task({
+    this.id = '',
     required this.title,
-    required this.subject,
+    this.subject = '',
+    this.description,
+    this.subjectId,
+    this.subjectTitle,
     required this.deadline,
-    required this.priority,
+    this.priority = 'Орташа',
     this.isCompleted = false,
-    this.description = '',
-    List<SubTask>? subtasks,
-  }) : subtasks = subtasks ?? [];
+    this.isFavorite = false,
+    this.subtasks = const [],
+  });
+
+  DateTime get deadlineDateTime {
+    return DateTime.tryParse(deadline) ?? DateTime.now();
+  }
+
+  TaskPriority get priorityEnum => TaskPriority.fromString(priority);
+
+  /// Десериализация из JSON (MockAPI / REST API)
+  factory Task.fromJson(Map<String, dynamic> json) {
+    final sub = json['subject'] as String? ?? json['subject_title'] as String? ?? '';
+    final completed = json['isCompleted'] is bool
+        ? json['isCompleted'] as bool
+        : (json['is_completed'] == 1 ||
+            json['is_completed'] == true ||
+            json['isCompleted'] == 'true' ||
+            json['isCompleted'] == 1);
+
+    return Task(
+      id: json['id']?.toString() ?? '',
+      title: json['title'] as String? ?? '',
+      subject: sub,
+      description: json['description'] as String?,
+      subjectId: json['subject_id'] is int
+          ? json['subject_id'] as int
+          : int.tryParse(json['subject_id']?.toString() ?? ''),
+      subjectTitle: sub.isNotEmpty ? sub : json['subject_title'] as String?,
+      deadline: json['deadline'] as String? ?? '',
+      priority: json['priority'] as String? ?? 'Орташа',
+      isCompleted: completed,
+      isFavorite: json['is_favorite'] == 1 ||
+          json['is_favorite'] == true ||
+          json['isFavorite'] == true,
+      subtasks: (json['subtasks'] as List<dynamic>?)
+              ?.map((s) => Subtask.fromMap(s as Map<String, dynamic>))
+              .toList() ??
+          const [],
+    );
+  }
+
+  /// Сериализация в JSON (MockAPI / REST API)
+  Map<String, dynamic> toJson() {
+    final effectiveSubject = subject.isNotEmpty ? subject : (subjectTitle ?? '');
+    final map = <String, dynamic>{
+      'title': title,
+      'subject': effectiveSubject,
+      'deadline': deadline,
+      'priority': priority,
+      'isCompleted': isCompleted,
+    };
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    if (description != null && description!.isNotEmpty) {
+      map['description'] = description;
+    }
+    return map;
+  }
+
+  /// Для совместимости со SQLite
+  Map<String, dynamic> toMap() {
+    final map = <String, dynamic>{
+      'title': title,
+      'description': description,
+      'subject_id': subjectId,
+      'deadline': deadline,
+      'priority': priority,
+      'is_completed': isCompleted ? 1 : 0,
+      'is_favorite': isFavorite ? 1 : 0,
+    };
+    final intId = int.tryParse(id);
+    if (intId != null) {
+      map['id'] = intId;
+    }
+    return map;
+  }
+
+  /// Для совместимости со SQLite
+  factory Task.fromMap(Map<String, dynamic> map) => Task.fromJson(map);
 
   Task copyWith({
     String? id,
     String? title,
     String? subject,
-    DateTime? deadline,
-    TaskPriority? priority,
-    bool? isCompleted,
     String? description,
-    List<SubTask>? subtasks,
+    int? subjectId,
+    String? subjectTitle,
+    String? deadline,
+    String? priority,
+    bool? isCompleted,
+    bool? isFavorite,
+    List<Subtask>? subtasks,
   }) {
     return Task(
       id: id ?? this.id,
       title: title ?? this.title,
       subject: subject ?? this.subject,
+      description: description ?? this.description,
+      subjectId: subjectId ?? this.subjectId,
+      subjectTitle: subjectTitle ?? this.subjectTitle,
       deadline: deadline ?? this.deadline,
       priority: priority ?? this.priority,
       isCompleted: isCompleted ?? this.isCompleted,
-      description: description ?? this.description,
-      subtasks: subtasks ?? this.subtasks.map((s) => s.copyWith()).toList(),
+      isFavorite: isFavorite ?? this.isFavorite,
+      subtasks: subtasks ?? this.subtasks,
     );
   }
 
   static List<String> get availableSubjects => const [
         'Мобильді әзірлеу',
         'Деректер қоры',
-        'Дискретті математика',
         'Ағылшын тілі',
-        'Жоғары математика',
-        'Алгоритмдер мен құрылымдар',
       ];
 
-  static List<Task> get sampleTasks {
-    return [
-      Task(
-        id: 'task-1',
-        title: 'Зертханалық жұмыс №4',
-        subject: 'Деректер қоры',
-        deadline: DateTime(2026, 10, 23, 12, 0),
-        priority: TaskPriority.medium,
-        isCompleted: false,
-        description: 'PostgreSQL деректер қорында индекстер құру және транзакцияларды оңтайландыру.',
-        subtasks: [
-          SubTask(id: 'st-1', title: 'ER диаграммасын құру', isDone: true),
-          SubTask(id: 'st-2', title: 'SQL сұраныстар жазу', isDone: false),
-        ],
-      ),
-      Task(
-        id: 'task-2',
-        title: 'Мобильді қосымша ТТ',
-        subject: 'Мобильді әзірлеу',
-        deadline: DateTime(2026, 10, 22, 18, 0),
-        priority: TaskPriority.high,
-        isCompleted: false,
-        description:
-            'UniTask қосымшасының техникалық тапсырмасын дайындау. Негізгі экрандар мен қолданушы талаптарын сипаттау.',
-        subtasks: [
-          SubTask(id: 'st-3', title: 'Талаптарды анықтау', isDone: true),
-          SubTask(id: 'st-4', title: 'Экрандар құрылымын жазу', isDone: false),
-          SubTask(id: 'st-5', title: 'ТТ құжатын тапсыру', isDone: false),
-        ],
-      ),
-      Task(
-        id: 'task-3',
-        title: 'Эссе жазу',
-        subject: 'Ағылшын тілі',
-        deadline: DateTime(2026, 10, 20, 15, 0),
-        priority: TaskPriority.low,
-        isCompleted: true,
-        description: 'Academic Writing тақырыбы бойынша 250 сөзден тұратын эссе жазу.',
-        subtasks: [
-          SubTask(id: 'st-6', title: 'Тезисті таңдау', isDone: true),
-          SubTask(id: 'st-7', title: 'Грамматикасын тексеру', isDone: true),
-        ],
-      ),
-      Task(
-        id: 'task-4',
-        title: 'Есептер жинағы',
-        subject: 'Дискретті математика',
-        deadline: DateTime(2026, 10, 21, 10, 0),
-        priority: TaskPriority.medium,
-        isCompleted: true,
-        description: 'Графтар теориясы және комбинаторика есептерін шығару.',
-        subtasks: [
-          SubTask(id: 'st-8', title: '1-10 есептерді шығару', isDone: true),
-        ],
-      ),
-      Task(
-        id: 'task-5',
-        title: 'Дәріс конспектісі',
-        subject: 'Мобильді әзірлеу',
-        deadline: DateTime(2026, 10, 19, 14, 0),
-        priority: TaskPriority.low,
-        isCompleted: true,
-        description: 'Flutter Widget lifecycle және State management тақырыптары бойынша конспект.',
-        subtasks: [
-          SubTask(id: 'st-9', title: 'Негізгі ұғымдарды жазу', isDone: true),
-        ],
-      ),
-    ];
-  }
+  static List<Task> get sampleTasks => [
+        Task(
+          id: '1',
+          title: 'Зертханалық жұмыс №4',
+          description:
+              'PostgreSQL деректер қорында индекстер құру және транзакцияларды оңтайландыру.',
+          subject: 'Деректер қоры',
+          subjectId: 2,
+          subjectTitle: 'Деректер қоры',
+          deadline:
+              DateTime.now().add(const Duration(days: 2)).toIso8601String(),
+          priority: 'Орташа',
+          isCompleted: false,
+          isFavorite: true,
+          subtasks: const [
+            Subtask(
+                id: 1, taskId: 1, title: 'ER диаграммасын құру', isCompleted: true),
+            Subtask(
+                id: 2, taskId: 1, title: 'SQL сұраныстар жазу', isCompleted: false),
+          ],
+        ),
+        Task(
+          id: '2',
+          title: 'Мобильді қосымша ТТ',
+          description: 'UniTask қосымшасының техникалық тапсырмасын дайындау.',
+          subject: 'Мобильді әзірлеу',
+          subjectId: 1,
+          subjectTitle: 'Мобильді әзірлеу',
+          deadline:
+              DateTime.now().add(const Duration(days: 1)).toIso8601String(),
+          priority: 'Жоғары',
+          isCompleted: false,
+          isFavorite: true,
+          subtasks: const [
+            Subtask(
+                id: 3, taskId: 2, title: 'Талаптарды анықтау', isCompleted: true),
+            Subtask(
+                id: 4, taskId: 2, title: 'Экрандар құрылымын жазу', isCompleted: false),
+          ],
+        ),
+      ];
 }
