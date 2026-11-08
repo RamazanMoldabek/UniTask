@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/task.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -22,18 +23,26 @@ class ProfileScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Жүйеден шығу', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Жүйеден шығу',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         content: const Text('Шынымен аккаунтыңыздан шыққыңыз келе ме?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Болдырмау', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Болдырмау',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFFEF4444),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () {
               Navigator.pop(ctx);
@@ -51,13 +60,19 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Тілді таңдаңыз', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: const Text(
+          'Тілді таңдаңыз',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               title: const Text('Қазақша'),
-              trailing: const Icon(Icons.check_rounded, color: Color(0xFF4F46E5)),
+              trailing: const Icon(
+                Icons.check_rounded,
+                color: Color(0xFF4F46E5),
+              ),
               onTap: () => Navigator.pop(ctx),
             ),
             ListTile(
@@ -79,13 +94,20 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Еске салғыштар', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-        content: const Text('Дедлайнға 1 күн және 2 сағат қалғанда хабарламалар жіберіледі.'),
+        title: const Text(
+          'Еске салғыштар',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        content: const Text(
+          'Дедлайнға 1 күн және 2 сағат қалғанда хабарламалар жіберіледі.',
+        ),
         actions: [
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF4F46E5),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Жақсы'),
@@ -100,7 +122,9 @@ class ProfileScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+      backgroundColor: isDark
+          ? const Color(0xFF0F172A)
+          : const Color(0xFFF8FAFC),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
@@ -148,7 +172,9 @@ class ProfileScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: isDark ? Colors.white : const Color(0xFF0F172A),
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF0F172A),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -156,7 +182,9 @@ class ProfileScreen extends StatelessWidget {
                         'Ақпараттық жүйелер · 2-курс',
                         style: TextStyle(
                           fontSize: 13,
-                          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                          color: isDark
+                              ? const Color(0xFF94A3B8)
+                              : const Color(0xFF64748B),
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -186,7 +214,9 @@ class ProfileScreen extends StatelessWidget {
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Column(
@@ -215,7 +245,9 @@ class ProfileScreen extends StatelessWidget {
                           'тапсырма орындалды',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -231,7 +263,9 @@ class ProfileScreen extends StatelessWidget {
                       color: isDark ? const Color(0xFF1E293B) : Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                        color: isDark
+                            ? const Color(0xFF334155)
+                            : const Color(0xFFE2E8F0),
                       ),
                     ),
                     child: Column(
@@ -260,7 +294,9 @@ class ProfileScreen extends StatelessWidget {
                           'уақытында тапсырылды',
                           style: TextStyle(
                             fontSize: 12,
-                            color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                            color: isDark
+                                ? const Color(0xFF94A3B8)
+                                : const Color(0xFF64748B),
                           ),
                         ),
                       ],
@@ -288,20 +324,27 @@ class ProfileScreen extends StatelessWidget {
                 color: isDark ? const Color(0xFF1E293B) : Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
+                  color: isDark
+                      ? const Color(0xFF334155)
+                      : const Color(0xFFE2E8F0),
                 ),
               ),
               child: Column(
                 children: [
                   // Dark mode item
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       children: [
                         Icon(
                           Icons.dark_mode_outlined,
                           size: 22,
-                          color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                          color: isDark
+                              ? const Color(0xFFCBD5E1)
+                              : const Color(0xFF475569),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -310,7 +353,9 @@ class ProfileScreen extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
-                              color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              color: isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A),
                             ),
                           ),
                         ),
@@ -325,19 +370,26 @@ class ProfileScreen extends StatelessWidget {
                   Divider(
                     height: 1,
                     thickness: 1,
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9),
                   ),
                   // Language item
                   InkWell(
                     onTap: () => _showLanguageDialog(context),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.translate_rounded,
                             size: 22,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF475569),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -346,7 +398,9 @@ class ProfileScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -354,14 +408,18 @@ class ProfileScreen extends StatelessWidget {
                             'Қазақша',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.chevron_right_rounded,
                             size: 18,
-                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            color: isDark
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8),
                           ),
                         ],
                       ),
@@ -370,19 +428,26 @@ class ProfileScreen extends StatelessWidget {
                   Divider(
                     height: 1,
                     thickness: 1,
-                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                    color: isDark
+                        ? const Color(0xFF334155)
+                        : const Color(0xFFF1F5F9),
                   ),
                   // Reminders item
                   InkWell(
                     onTap: () => _showRemindersDialog(context),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: [
                           Icon(
                             Icons.notifications_none_rounded,
                             size: 22,
-                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                            color: isDark
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF475569),
                           ),
                           const SizedBox(width: 14),
                           Expanded(
@@ -391,7 +456,9 @@ class ProfileScreen extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
-                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                                color: isDark
+                                    ? Colors.white
+                                    : const Color(0xFF0F172A),
                               ),
                             ),
                           ),
@@ -399,14 +466,18 @@ class ProfileScreen extends StatelessWidget {
                             'Қосулы',
                             style: TextStyle(
                               fontSize: 13,
-                              color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                              color: isDark
+                                  ? const Color(0xFF94A3B8)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                           const SizedBox(width: 4),
                           Icon(
                             Icons.chevron_right_rounded,
                             size: 18,
-                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                            color: isDark
+                                ? const Color(0xFF64748B)
+                                : const Color(0xFF94A3B8),
                           ),
                         ],
                       ),
@@ -422,7 +493,11 @@ class ProfileScreen extends StatelessWidget {
               height: 50,
               child: FilledButton.icon(
                 onPressed: () => _showLogoutDialog(context),
-                icon: const Icon(Icons.logout_rounded, size: 20, color: Color(0xFFEF4444)),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: Color(0xFFEF4444),
+                ),
                 label: const Text(
                   'Шығу',
                   style: TextStyle(
@@ -435,7 +510,9 @@ class ProfileScreen extends StatelessWidget {
                   backgroundColor: const Color(0xFFFEF2F2),
                   foregroundColor: const Color(0xFFEF4444),
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ),
@@ -447,7 +524,9 @@ class ProfileScreen extends StatelessWidget {
                 'UniTask · Нұсқа 1.0.0',
                 style: TextStyle(
                   fontSize: 12,
-                  color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                  color: isDark
+                      ? const Color(0xFF64748B)
+                      : const Color(0xFF94A3B8),
                 ),
               ),
             ),
