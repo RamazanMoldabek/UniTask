@@ -49,6 +49,17 @@ class WebSocketService {
       final uri = Uri.parse(endpoint);
       _channel = WebSocketChannel.connect(uri);
 
+      _channel!.ready.then((_) {
+        if (_status != SocketStatus.connected) {
+          _reconnectAttempts = 0;
+          _updateStatus(SocketStatus.connected);
+          AppLogger.socket('WebSocket connected successfully');
+        }
+      }).catchError((dynamic error) {
+        AppLogger.error('WebSocket ready error', error: error);
+        _handleDisconnect();
+      });
+
       _subscription = _channel!.stream.listen(
         (dynamic rawMessage) {
           if (_status != SocketStatus.connected) {

@@ -11,6 +11,7 @@ class ConnectionBanner extends StatefulWidget {
 class _ConnectionBannerState extends State<ConnectionBanner> {
   SocketStatus _status = WebSocketService.instance.status;
   bool _showSuccessTemporarily = false;
+  bool _dismissed = false;
 
   @override
   void initState() {
@@ -22,6 +23,7 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
         setState(() {
           _status = status;
           _showSuccessTemporarily = true;
+          _dismissed = false;
         });
         Future.delayed(const Duration(seconds: 3), () {
           if (mounted) {
@@ -33,6 +35,7 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
       } else {
         setState(() {
           _status = status;
+          _dismissed = false;
         });
       }
     });
@@ -40,6 +43,10 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
 
   @override
   Widget build(BuildContext context) {
+    if (_dismissed) {
+      return const SizedBox.shrink();
+    }
+
     if (_status == SocketStatus.connected && !_showSuccessTemporarily) {
       return const SizedBox.shrink();
     }
@@ -120,7 +127,21 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
                 ),
               ),
             ),
-            if (actionWidget != null) ...[actionWidget],
+            if (actionWidget != null) ...[
+              actionWidget,
+              const SizedBox(width: 8),
+            ],
+            GestureDetector(
+              onTap: () => setState(() => _dismissed = true),
+              child: Padding(
+                padding: const EdgeInsets.all(2.0),
+                child: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color: textColor.withValues(alpha: 0.8),
+                ),
+              ),
+            ),
           ],
         ),
       ),
