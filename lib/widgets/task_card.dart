@@ -71,6 +71,7 @@ class TaskCard extends StatelessWidget {
               children: [
                 // Checkbox
                 GestureDetector(
+                  key: const Key('task_card_checkbox'),
                   onTap: onToggle,
                   behavior: HitTestBehavior.opaque,
                   child: Padding(

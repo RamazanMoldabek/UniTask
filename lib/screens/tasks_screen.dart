@@ -1,8 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/subject.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../services/websocket_service.dart';
+import '../utils/app_logger.dart';
+import '../widgets/connection_banner.dart';
+import '../widgets/empty_state_view.dart';
+import '../widgets/error_state_view.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
 import 'add_task_sheet.dart';
@@ -33,12 +39,13 @@ class _TasksScreenState extends State<TasksScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
   String? _selectedSubjectFilter;
-  String _sortBy = 'default'; // 'default', 'deadline', 'priority'
+  String _sortBy = 'default';
 
   List<Task> _tasks = [];
   List<Subject> _subjects = [];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription? _socketSubscription;
 
   static const List<Subject> _fallbackSubjects = [
     Subject(id: 1, title: 'Мобильді әзірлеу', colorHex: '#4F46E5'),
@@ -50,12 +57,44 @@ class _TasksScreenState extends State<TasksScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _listenToRealtimeEvents();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _socketSubscription?.cancel();
     super.dispose();
+  }
+
+  void _listenToRealtimeEvents() {
+    _socketSubscription =
+        WebSocketService.instance.taskEventsStream.listen((event) {
+      if (!mounted) return;
+      try {
+        final action = event['action'] as String?;
+        final rawTask = event['task'];
+        if (rawTask is Map<String, dynamic>) {
+          final task = Task.fromJson(rawTask);
+          setState(() {
+            if (action == 'create') {
+              if (!_tasks.any((t) => t.id == task.id)) {
+                _tasks.insert(0, task);
+              }
+            } else if (action == 'update' || action == 'toggle') {
+              final index = _tasks.indexWhere((t) => t.id == task.id);
+              if (index != -1) {
+                _tasks[index] = task;
+              }
+            } else if (action == 'delete') {
+              _tasks.removeWhere((t) => t.id == task.id);
+            }
+          });
+        }
+      } catch (e) {
+        AppLogger.error('Realtime event error in TasksScreen', error: e);
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -86,7 +125,7 @@ class _TasksScreenState extends State<TasksScreen> {
           _errorMessage = null;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -108,6 +147,8 @@ class _TasksScreenState extends State<TasksScreen> {
 
     try {
       final savedTask = await ApiService.instance.updateTask(updatedTask);
+      WebSocketService.instance.broadcastTaskAction('toggle', savedTask);
+
       if (mounted) {
         setState(() {
           final idx = _tasks.indexWhere((t) => t.id == task.id);
@@ -138,13 +179,20 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> _handleDelete(String taskId) async {
     final original = List<Task>.from(_tasks);
+    final taskToDelete = _tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => Task(id: taskId, title: '', deadline: ''),
+    );
+
     setState(() {
       _tasks.removeWhere((t) => t.id == taskId);
     });
 
     try {
       await ApiService.instance.deleteTask(taskId);
+      WebSocketService.instance.broadcastTaskAction('delete', taskToDelete);
       widget.onDeleteTask?.call(taskId);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -174,6 +222,8 @@ class _TasksScreenState extends State<TasksScreen> {
   Future<void> _handleUpdate(Task task) async {
     try {
       final updated = await ApiService.instance.updateTask(task);
+      WebSocketService.instance.broadcastTaskAction('update', updated);
+
       setState(() {
         final idx = _tasks.indexWhere((t) => t.id == task.id);
         if (idx != -1) {
@@ -330,7 +380,6 @@ class _TasksScreenState extends State<TasksScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Filter by search query
     var filteredList = _tasks.where((t) {
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
@@ -350,7 +399,6 @@ class _TasksScreenState extends State<TasksScreen> {
       return true;
     }).toList();
 
-    // Sort tasks
     if (_sortBy == 'deadline') {
       filteredList.sort((a, b) => a.deadlineDateTime.compareTo(b.deadlineDateTime));
     } else if (_sortBy == 'priority') {
@@ -369,7 +417,6 @@ class _TasksScreenState extends State<TasksScreen> {
 
       filteredList.sort((a, b) => pRank(a.priority).compareTo(pRank(b.priority)));
     } else {
-      // default: uncompleted first, then by deadline
       filteredList.sort((a, b) {
         if (a.isCompleted != b.isCompleted) {
           return a.isCompleted ? 1 : -1;
@@ -385,16 +432,23 @@ class _TasksScreenState extends State<TasksScreen> {
       backgroundColor:
           isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadData,
-          color: const Color(0xFF4F46E5),
-          child: _buildBody(
-            context,
-            isDark: isDark,
-            filteredTasks: filteredList,
-            inProgressTasks: inProgressTasks,
-            completedTasks: completedTasks,
-          ),
+        child: Column(
+          children: [
+            const ConnectionBanner(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadData,
+                color: const Color(0xFF4F46E5),
+                child: _buildBody(
+                  context,
+                  isDark: isDark,
+                  filteredTasks: filteredList,
+                  inProgressTasks: inProgressTasks,
+                  completedTasks: completedTasks,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -407,92 +461,30 @@ class _TasksScreenState extends State<TasksScreen> {
     required List<Task> inProgressTasks,
     required List<Task> completedTasks,
   }) {
-    // 1. Loading State
     if (_isLoading) {
       return const Center(
         child: CircularProgressIndicator(color: Color(0xFF4F46E5)),
       );
     }
 
-    // 2. Error State
     if (_errorMessage != null) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFEE2E2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.wifi_off_rounded,
-                      size: 36,
-                      color: Color(0xFFEF4444),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Интернет байланысын тексеріп, қайталап көріңіз',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: _loadData,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    label: const Text(
-                      'Қайталау',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+          ErrorStateView.noInternet(
+            onRetry: _loadData,
+            message: 'Интернет байланысын тексеріп, қайталап көріңіз',
           ),
         ],
       );
     }
 
-    // 3. Success State
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 90),
       children: [
-        // Top Header: Title and + button
+        // Top Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -510,8 +502,12 @@ class _TasksScreenState extends State<TasksScreen> {
                   context,
                   onSave: (task) async {
                     setState(() {
-                      _tasks.insert(0, task);
+                      if (!_tasks.any((t) => t.id == task.id)) {
+                        _tasks.insert(0, task);
+                      }
                     });
+                    WebSocketService.instance
+                        .broadcastTaskAction('create', task);
                     widget.onAddTask?.call(task);
                   },
                 );
@@ -594,7 +590,6 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
             Row(
               children: [
-                // Sort button
                 InkWell(
                   onTap: _showSortOptions,
                   borderRadius: BorderRadius.circular(8),
@@ -622,8 +617,6 @@ class _TasksScreenState extends State<TasksScreen> {
                   ),
                 ),
                 const SizedBox(width: 6),
-
-                // Subject filter button
                 InkWell(
                   onTap: _showSubjectFilterSheet,
                   borderRadius: BorderRadius.circular(8),
@@ -663,41 +656,12 @@ class _TasksScreenState extends State<TasksScreen> {
         const SizedBox(height: 16),
 
         if (_tasks.isEmpty)
-          // Entire list empty state
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            child: Center(
-              child: Column(
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEEF2FF),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.assignment_outlined,
-                      size: 32,
-                      color: Color(0xFF4F46E5),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Әзірге тапсырмалар жоқ. Жаңасын қосыңыз!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          const EmptyStateView(
+            title: 'Әзірге тапсырмалар жоқ. Жаңасын қосыңыз!',
+            subtitle: 'Жаңа тапсырма қосу үшін жоғарғы «+» батырмасын басыңыз',
+            icon: Icons.assignment_outlined,
           )
         else if (filteredTasks.isEmpty)
-          // Filter / search returned nothing
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 40),
             child: Center(
@@ -724,7 +688,7 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
           )
         else ...[
-          // Section 1: In Progress (Орындалуда)
+          // Section 1: In Progress
           if (inProgressTasks.isNotEmpty) ...[
             Row(
               children: [
@@ -771,7 +735,7 @@ class _TasksScreenState extends State<TasksScreen> {
             const SizedBox(height: 14),
           ],
 
-          // Section 2: Completed (Аяқталды)
+          // Section 2: Completed
           if (completedTasks.isNotEmpty) ...[
             Row(
               children: [

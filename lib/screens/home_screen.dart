@@ -1,6 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
+import '../services/websocket_service.dart';
+import '../utils/app_logger.dart';
+import '../widgets/connection_banner.dart';
+import '../widgets/empty_state_view.dart';
+import '../widgets/error_state_view.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
 import 'add_task_sheet.dart';
@@ -30,11 +36,52 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Task> _tasks = [];
   bool _isLoading = true;
   String? _errorMessage;
+  StreamSubscription? _socketSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _listenToRealtimeEvents();
+  }
+
+  @override
+  void dispose() {
+    _socketSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _listenToRealtimeEvents() {
+    _socketSubscription =
+        WebSocketService.instance.taskEventsStream.listen((event) {
+      if (!mounted) return;
+      try {
+        final action = event['action'] as String?;
+        final rawTask = event['task'];
+        if (rawTask is Map<String, dynamic>) {
+          final task = Task.fromJson(rawTask);
+          setState(() {
+            if (action == 'create') {
+              if (!_tasks.any((t) => t.id == task.id)) {
+                _tasks.insert(0, task);
+                AppLogger.info('Realtime task created: #${task.id}');
+              }
+            } else if (action == 'update' || action == 'toggle') {
+              final index = _tasks.indexWhere((t) => t.id == task.id);
+              if (index != -1) {
+                _tasks[index] = task;
+                AppLogger.info('Realtime task updated: #${task.id}');
+              }
+            } else if (action == 'delete') {
+              _tasks.removeWhere((t) => t.id == task.id);
+              AppLogger.info('Realtime task deleted: #${task.id}');
+            }
+          });
+        }
+      } catch (e) {
+        AppLogger.error('Error handling realtime event', error: e);
+      }
+    });
   }
 
   Future<void> _loadTasks() async {
@@ -52,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _errorMessage = null;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -65,7 +112,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleToggle(Task task) async {
     final updatedTask = task.copyWith(isCompleted: !task.isCompleted);
 
-    // Optimistic UI update
     setState(() {
       final idx = _tasks.indexWhere((t) => t.id == task.id);
       if (idx != -1) {
@@ -75,6 +121,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final savedTask = await ApiService.instance.updateTask(updatedTask);
+      WebSocketService.instance.broadcastTaskAction('toggle', savedTask);
+
       if (mounted) {
         setState(() {
           final idx = _tasks.indexWhere((t) => t.id == task.id);
@@ -85,7 +133,6 @@ class _HomeScreenState extends State<HomeScreen> {
         widget.onToggleTask?.call(savedTask);
       }
     } catch (e) {
-      // Revert upon network/server failure
       if (mounted) {
         setState(() {
           final idx = _tasks.indexWhere((t) => t.id == task.id);
@@ -106,13 +153,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _handleDelete(String taskId) async {
     final originalTasks = List<Task>.from(_tasks);
+    final taskToDelete = _tasks.firstWhere(
+      (t) => t.id == taskId,
+      orElse: () => Task(id: taskId, title: '', deadline: ''),
+    );
+
     setState(() {
       _tasks.removeWhere((t) => t.id == taskId);
     });
 
     try {
       await ApiService.instance.deleteTask(taskId);
+      WebSocketService.instance.broadcastTaskAction('delete', taskToDelete);
       widget.onDeleteTask?.call(taskId);
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -142,6 +196,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _handleUpdate(Task task) async {
     try {
       final updated = await ApiService.instance.updateTask(task);
+      WebSocketService.instance.broadcastTaskAction('update', updated);
+
       setState(() {
         final idx = _tasks.indexWhere((t) => t.id == task.id);
         if (idx != -1) {
@@ -219,8 +275,12 @@ class _HomeScreenState extends State<HomeScreen> {
             context,
             onSave: (createdTask) async {
               setState(() {
-                _tasks.insert(0, createdTask);
+                if (!_tasks.any((t) => t.id == createdTask.id)) {
+                  _tasks.insert(0, createdTask);
+                }
               });
+              WebSocketService.instance
+                  .broadcastTaskAction('create', createdTask);
               widget.onAddTask?.call(createdTask);
             },
           );
@@ -232,18 +292,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: const Icon(Icons.add_rounded, size: 28),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _loadTasks,
-          color: const Color(0xFF4F46E5),
-          child: _buildBodyContent(
-            context,
-            isDark: isDark,
-            totalTasks: totalTasks,
-            completedTasksCount: completedTasksCount,
-            remainingCount: remainingCount,
-            progress: progress,
-            inProgressTasks: inProgressTasks,
-          ),
+        child: Column(
+          children: [
+            const ConnectionBanner(),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: _loadTasks,
+                color: const Color(0xFF4F46E5),
+                child: _buildBodyContent(
+                  context,
+                  isDark: isDark,
+                  totalTasks: totalTasks,
+                  completedTasksCount: completedTasksCount,
+                  remainingCount: remainingCount,
+                  progress: progress,
+                  inProgressTasks: inProgressTasks,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -270,69 +337,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.22),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFFEE2E2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.wifi_off_rounded,
-                      size: 36,
-                      color: Color(0xFFEF4444),
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    _errorMessage!,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : const Color(0xFF0F172A),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Интернет байланысын тексеріп, қайталап көріңіз',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: isDark
-                          ? const Color(0xFF94A3B8)
-                          : const Color(0xFF64748B),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  FilledButton.icon(
-                    onPressed: _loadTasks,
-                    icon: const Icon(Icons.refresh_rounded, size: 20),
-                    label: const Text(
-                      'Қайталау',
-                      style:
-                          TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+          SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+          ErrorStateView.noInternet(
+            onRetry: _loadTasks,
+            message: 'Интернет байланысын тексеріп, қайталап көріңіз',
           ),
         ],
       );
@@ -444,7 +452,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Progress Bar
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
@@ -476,7 +483,6 @@ class _HomeScreenState extends State<HomeScreen> {
         // Filter Chips
         Row(
           children: [
-            // "Барлығы" chip
             GestureDetector(
               onTap: () {
                 setState(() {
@@ -516,7 +522,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(width: 8),
 
-            // "Шұғыл" chip
             GestureDetector(
               onTap: () {
                 setState(() {
@@ -597,55 +602,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // Tasks Content
         if (_tasks.isEmpty)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E293B) : Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color:
-                    isDark ? const Color(0xFF334155) : const Color(0xFFE2E8F0),
-              ),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEEF2FF),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.assignment_outlined,
-                    size: 32,
-                    color: Color(0xFF4F46E5),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Әзірге тапсырмалар жоқ. Жаңасын қосыңыз!',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : const Color(0xFF0F172A),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Жаңа тапсырма қосу үшін төмендегі «+» түймесін басыңыз',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: isDark
-                        ? const Color(0xFF94A3B8)
-                        : const Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
+          const EmptyStateView(
+            title: 'Әзірге тапсырмалар жоқ. Жаңасын қосыңыз!',
+            subtitle: 'Жаңа тапсырма қосу үшін төмендегі «+» түймесін басыңыз',
+            icon: Icons.assignment_outlined,
           )
         else if (inProgressTasks.isEmpty)
           Container(

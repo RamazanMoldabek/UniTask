@@ -3,6 +3,8 @@ import '../models/subject.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../utils/app_logger.dart';
+import '../utils/validators.dart';
 
 typedef AddTaskBottomSheet = AddTaskSheet;
 
@@ -343,10 +345,11 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _save() async {
-    if (_titleController.text.trim().isEmpty) {
+    final titleError = Validators.validateTaskTitle(_titleController.text);
+    if (titleError != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Тапсырма атауын енгізіңіз'),
+        SnackBar(
+          content: Text(titleError),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -403,6 +406,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       } catch (_) {}
 
       widget.onSave(savedTask);
+      AppLogger.info('Task saved: #${savedTask.id} (${savedTask.title})');
       navigator.pop(savedTask);
 
       messenger.showSnackBar(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'models/task.dart';
@@ -10,6 +11,8 @@ import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/api_service.dart';
 import 'services/database_helper.dart';
+import 'services/websocket_service.dart';
+import 'utils/app_logger.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,6 +20,9 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  // Start Realtime WebSocket connection
+  WebSocketService.instance.connect();
+  AppLogger.info('UniTask application initialized');
   runApp(const UniTaskApp());
 }
 
@@ -144,11 +150,40 @@ class MainNavigationShell extends StatefulWidget {
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
   List<Task> _tasks = [];
+  StreamSubscription? _socketSub;
 
   @override
   void initState() {
     super.initState();
     _loadTasks();
+    _socketSub = WebSocketService.instance.taskEventsStream.listen((event) {
+      if (!mounted) return;
+      final action = event['action'] as String?;
+      final rawTask = event['task'];
+      if (rawTask is Map<String, dynamic>) {
+        final task = Task.fromJson(rawTask);
+        setState(() {
+          if (action == 'create') {
+            if (!_tasks.any((t) => t.id == task.id)) {
+              _tasks.insert(0, task);
+            }
+          } else if (action == 'update' || action == 'toggle') {
+            final idx = _tasks.indexWhere((t) => t.id == task.id);
+            if (idx != -1) {
+              _tasks[idx] = task;
+            }
+          } else if (action == 'delete') {
+            _tasks.removeWhere((t) => t.id == task.id);
+          }
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _socketSub?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadTasks() async {

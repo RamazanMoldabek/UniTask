@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import 'error_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final List<Task> tasks;
@@ -91,6 +92,90 @@ class ProfileScreen extends StatelessWidget {
             child: const Text('Жақсы'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showErrorPagesSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Text(
+                  'Қате беттерінің үлгілері',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEE2E2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.wifi_off_rounded, color: Color(0xFFEF4444), size: 20),
+                ),
+                title: const Text('Дисконнект / Офлайн беті'),
+                subtitle: const Text('Интернет жоқ кездегі қате көрінісі'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ErrorScreen.showDisconnect(context);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF3E8FF),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.search_off_rounded, color: Color(0xFF8B5CF6), size: 20),
+                ),
+                title: const Text('404 - Бет табылмады'),
+                subtitle: const Text('Ресурс жоқ кездегі қате көрінісі'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ErrorScreen.showNotFound(context);
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFFEF3C7),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.cloud_off_rounded, color: Color(0xFFF59E0B), size: 20),
+                ),
+                title: const Text('500 - Сервер қатесі'),
+                subtitle: const Text('Сервер істен шыққандағы көрініс'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ErrorScreen.showServerError(context);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -403,6 +488,43 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 4),
+                          Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: isDark ? const Color(0xFF334155) : const Color(0xFFF1F5F9),
+                  ),
+                  // Custom Error Pages Demo
+                  InkWell(
+                    onTap: () => _showErrorPagesSheet(context),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.error_outline_rounded,
+                            size: 22,
+                            color: isDark ? const Color(0xFFCBD5E1) : const Color(0xFF475569),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              'Қате беттерін қарау (404 / Офлайн)',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: isDark ? Colors.white : const Color(0xFF0F172A),
+                              ),
+                            ),
+                          ),
                           Icon(
                             Icons.chevron_right_rounded,
                             size: 18,

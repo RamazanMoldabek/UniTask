@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/validators.dart';
 import 'register_screen.dart';
 import 'forgot_password_screen.dart';
 import 'onboarding_screen.dart';
@@ -25,6 +26,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _submit() {
+    final emailError = Validators.validateEmail(_emailController.text);
+    if (emailError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(emailError),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     widget.onLogin();
   }
 
