@@ -115,31 +115,33 @@ class WebSocketService {
     });
   }
 
-  void broadcastTaskAction(String action, Task task) {
-    final payload = {
-      'type': 'task_event',
-      'action': action, // 'create', 'update', 'delete', 'toggle'
+  /// Мұғалім талабы бойынша: sendTaskUpdate() әдісі (_channel.sink.add(message))
+  void sendTaskUpdate(Task task, {String action = 'update'}) {
+    final message = jsonEncode({
+      'type': 'task_update',
+      'action': action,
       'task': task.toJson(),
       'timestamp': DateTime.now().toIso8601String(),
-    };
+    });
 
-    final jsonString = jsonEncode(payload);
-
-    if (_status == SocketStatus.connected && _channel != null) {
+    if (_channel != null && _status == SocketStatus.connected) {
       try {
-        _channel!.sink.add(jsonString);
-        AppLogger.socket('Sent broadcast', data: jsonString);
+        _channel!.sink.add(message);
+        AppLogger.socket('Task update sent', data: message);
       } catch (e) {
-        AppLogger.error('Failed to send WebSocket message', error: e);
+        AppLogger.error('Failed to send task update', error: e);
       }
-    } else {
-      AppLogger.warning(
-          'Socket not connected. Event queued/local only: $action task #${task.id}');
     }
 
-    // Local loopback so listeners update instantly regardless of server echo speed
-    _taskEventsController.add(payload);
+    // Local loopback so listeners update instantly
+    _taskEventsController.add({
+      'action': action,
+      'task': task.toJson(),
+    });
   }
+
+  void broadcastTaskAction(String action, Task task) =>
+      sendTaskUpdate(task, action: action);
 
   void disconnect() {
     _isManualDisconnect = true;

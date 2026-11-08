@@ -9,6 +9,8 @@ import 'screens/search_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/error_screen.dart';
+import 'widgets/error_state_view.dart';
 import 'services/api_service.dart';
 import 'services/database_helper.dart';
 import 'services/websocket_service.dart';
@@ -127,6 +129,14 @@ class _UniTaskAppState extends State<UniTaskApp> {
                   onLogout: _handleLogout,
                 )
               : LoginScreen(onLogin: _handleLogin)),
+      routes: {
+        '/404': (context) => const ErrorScreen(type: ErrorType.notFound),
+        '/disconnect': (context) => const ErrorScreen(type: ErrorType.noInternet),
+        '/500': (context) => const ErrorScreen(type: ErrorType.serverError),
+      },
+      onUnknownRoute: (settings) => MaterialPageRoute(
+        builder: (_) => const ErrorScreen(type: ErrorType.notFound),
+      ),
     );
   }
 }
