@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:unitask/main.dart';
+import 'package:unitask/screens/tasks_screen.dart';
 import 'package:unitask/screens/task_detail_screen.dart';
 import 'package:unitask/models/task.dart';
 
@@ -331,9 +332,9 @@ void main() {
     expect(find.text('Шұғыл'), findsOneWidget);
 
     // Switch to Tasks tab
-    await tester.tap(find.text('Тапсырмалар'));
+    await tester.tap(find.byIcon(Icons.assignment_outlined));
     await tester.pump(const Duration(milliseconds: 500));
-    expect(find.text('Тапсырманы іздеу'), findsOneWidget);
+    expect(find.byType(TasksScreen), findsOneWidget);
 
     // Switch to Calendar tab (Kept in bottom navbar as user requested!)
     await tester.tap(find.text('Күнтізбе'));

@@ -12,7 +12,7 @@ enum SocketStatus {
 }
 
 class WebSocketService {
-  static const String defaultEndpoint = 'wss://echo.websocket.events';
+  static const String defaultEndpoint = 'wss://unitask-6er3.onrender.com';
   static final WebSocketService instance = WebSocketService._internal();
 
   factory WebSocketService() => instance;

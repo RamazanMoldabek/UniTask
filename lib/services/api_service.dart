@@ -7,7 +7,7 @@ import '../utils/app_logger.dart';
 
 class ApiService {
   static const String baseUrl =
-      'https://6aeac9de3d3dd3d37be73500.mockapi.io/tasks';
+      'https://unitask-6er3.onrender.com/tasks';
   static const Duration timeoutDuration = Duration(seconds: 10);
 
   static final ApiService instance = ApiService._internal();
