@@ -218,11 +218,12 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
 
   Future<void> _handleToggleTask(Task task) async {
     if (task.id.isEmpty) return;
-    try {
-      final updated = task.copyWith(isCompleted: !task.isCompleted);
-      await ApiService.instance.updateTask(updated);
-      await _loadTasks();
-    } catch (_) {}
+    setState(() {
+      final idx = _tasks.indexWhere((t) => t.id == task.id);
+      if (idx != -1) {
+        _tasks[idx] = task;
+      }
+    });
   }
 
   Future<void> _handleAddTask(Task task) async {

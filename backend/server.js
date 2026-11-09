@@ -111,22 +111,28 @@ app.put('/tasks/:id', (req, res) => {
   const tasks = loadTasks();
   const index = tasks.findIndex((t) => String(t.id) === String(req.params.id));
 
-  if (index === -1) {
-    return res.status(404).json({ error: 'Тапсырма табылмады (Task not found)' });
-  }
+  const isCompletedVal =
+    req.body.isCompleted !== undefined
+      ? req.body.isCompleted === true || req.body.isCompleted === 'true'
+      : req.body.is_completed !== undefined
+      ? req.body.is_completed === true || req.body.is_completed === 1 || req.body.is_completed === 'true'
+      : index !== -1
+      ? tasks[index].isCompleted
+      : false;
 
   const updatedTask = {
-    ...tasks[index],
+    ...(index !== -1 ? tasks[index] : {}),
     ...req.body,
     id: String(req.params.id),
-    isCompleted:
-      req.body.isCompleted !== undefined
-        ? req.body.isCompleted === true || req.body.isCompleted === 'true'
-        : tasks[index].isCompleted,
+    isCompleted: isCompletedVal,
     updatedAt: new Date().toISOString(),
   };
 
-  tasks[index] = updatedTask;
+  if (index === -1) {
+    tasks.push(updatedTask);
+  } else {
+    tasks[index] = updatedTask;
+  }
   saveTasks(tasks);
 
   // Broadcast realtime event

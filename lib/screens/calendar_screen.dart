@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
+import '../services/api_service.dart';
+import '../services/websocket_service.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
 import 'add_task_sheet.dart';
@@ -316,7 +318,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ...dayTasks.map(
                 (task) => TaskCard(
                   task: task,
-                  onToggle: () => widget.onToggleTask(task),
+                  onToggle: () async {
+                    final toggled =
+                        task.copyWith(isCompleted: !task.isCompleted);
+                    widget.onToggleTask(toggled);
+                    try {
+                      final saved =
+                          await ApiService.instance.updateTask(toggled);
+                      WebSocketService.instance
+                          .broadcastTaskAction('toggle', saved);
+                    } catch (_) {}
+                  },
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(

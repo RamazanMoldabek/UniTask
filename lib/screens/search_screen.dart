@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../models/subject.dart';
 import '../models/task.dart';
+import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../services/websocket_service.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
 
@@ -113,27 +115,61 @@ class _SearchScreenState extends State<SearchScreen> {
 
   Future<void> _handleToggle(Task task) async {
     if (task.id.isEmpty) return;
-    final intId = int.tryParse(task.id);
-    if (intId != null) {
-      await DatabaseHelper.instance.toggleTaskCompletion(intId, !task.isCompleted);
+    final toggled = task.copyWith(isCompleted: !task.isCompleted);
+
+    setState(() {
+      final idx = _searchResults.indexWhere((t) => t.id == task.id);
+      if (idx != -1) {
+        _searchResults[idx] = toggled;
+      }
+    });
+
+    widget.onToggleTask?.call(toggled);
+
+    try {
+      final savedTask = await ApiService.instance.updateTask(toggled);
+      WebSocketService.instance.broadcastTaskAction('toggle', savedTask);
+    } catch (_) {
+      try {
+        final intId = int.tryParse(task.id);
+        if (intId != null) {
+          await DatabaseHelper.instance
+              .toggleTaskCompletion(intId, !task.isCompleted);
+        }
+      } catch (_) {}
     }
-    await _performSearch(_searchQuery);
-    widget.onToggleTask?.call(task);
   }
 
   Future<void> _handleDelete(dynamic taskId) async {
-    final intId = taskId is int ? taskId : int.tryParse(taskId.toString());
-    if (intId != null) {
-      await DatabaseHelper.instance.deleteTask(intId);
+    final strId = taskId?.toString() ?? '';
+    widget.onDeleteTask?.call(taskId);
+
+    try {
+      await ApiService.instance.deleteTask(strId);
+      WebSocketService.instance
+          .broadcastTaskAction('delete', Task(id: strId, title: '', deadline: ''));
+    } catch (_) {
+      try {
+        final intId = taskId is int ? taskId : int.tryParse(strId);
+        if (intId != null) {
+          await DatabaseHelper.instance.deleteTask(intId);
+        }
+      } catch (_) {}
     }
     await _performSearch(_searchQuery);
-    widget.onDeleteTask?.call(taskId);
   }
 
   Future<void> _handleUpdate(Task task) async {
-    await DatabaseHelper.instance.updateTask(task);
-    await _performSearch(_searchQuery);
     widget.onUpdateTask?.call(task);
+    try {
+      final savedTask = await ApiService.instance.updateTask(task);
+      WebSocketService.instance.broadcastTaskAction('update', savedTask);
+    } catch (_) {
+      try {
+        await DatabaseHelper.instance.updateTask(task);
+      } catch (_) {}
+    }
+    await _performSearch(_searchQuery);
   }
 
   @override

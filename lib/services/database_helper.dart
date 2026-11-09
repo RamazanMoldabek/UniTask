@@ -443,13 +443,18 @@ class DatabaseHelper {
   }
 
   Future<int> toggleTaskCompletion(int id, bool isCompleted) async {
-    final db = await database;
-    return await db.update(
-      'tasks',
-      {'is_completed': isCompleted ? 1 : 0},
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    if (kIsWeb) return 0;
+    try {
+      final db = await database;
+      return await db.update(
+        'tasks',
+        {'is_completed': isCompleted ? 1 : 0},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<int> toggleFavorite(int id, bool isFavorite) async {
