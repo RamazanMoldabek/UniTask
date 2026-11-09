@@ -179,6 +179,25 @@ void main() {
       expect(Validators.validateTaskTitle('ab'),
           'Атау кемінде 3 таңбадан тұруы керек');
     });
+
+    test('Validates registration fields (full name, university, password)', () {
+      expect(Validators.validateFullName('Рамазан'), isNull);
+      expect(Validators.validateFullName(''), 'Аты-жөніңізді енгізіңіз');
+      expect(Validators.validateFullName('А'),
+          'Аты-жөні кемінде 2 таңбадан тұруы керек');
+
+      expect(Validators.validateUniversity('AITU'), isNull);
+      expect(Validators.validateUniversity(''), 'Оқу орнын енгізіңіз');
+
+      expect(Validators.validatePassword('password123'), isNull);
+      expect(Validators.validatePassword(''), 'Құпиясөзді енгізіңіз');
+      expect(Validators.validatePassword('1234567'),
+          'Құпиясөз кемінде 8 таңбадан тұруы керек');
+      expect(Validators.validatePassword('12345678'),
+          'Құпиясөзде кемінде 1 әріп және 1 цифр болуы керек');
+      expect(Validators.validatePassword('abcdefgh'),
+          'Құпиясөзде кемінде 1 әріп және 1 цифр болуы керек');
+    });
   });
 
   group('5. Widget Tests for Key UI Elements', () {
