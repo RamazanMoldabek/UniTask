@@ -4,6 +4,7 @@ import '../models/subject.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../services/locale_service.dart';
 import '../services/websocket_service.dart';
 import '../utils/app_logger.dart';
 import '../widgets/connection_banner.dart';
@@ -260,7 +261,7 @@ class _TasksScreenState extends State<TasksScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Text(
-                'Пән бойынша сүзу',
+                LocaleService.instance.t('filter_by_subject'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -269,7 +270,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
             ),
             ListTile(
-              title: const Text('Барлық пәндер'),
+              title: Text(LocaleService.instance.t('all_subjects')),
               trailing: _selectedSubjectFilter == null
                   ? const Icon(Icons.check_rounded, color: Color(0xFF4F46E5))
                   : null,
@@ -332,7 +333,7 @@ class _TasksScreenState extends State<TasksScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Text(
-                'Сұрыптау тәсілі',
+                LocaleService.instance.t('sort_method'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -341,7 +342,7 @@ class _TasksScreenState extends State<TasksScreen> {
               ),
             ),
             ListTile(
-              title: const Text('Әдепкі (күйі мен мерзімі бойынша)'),
+              title: Text(LocaleService.instance.t('sort_default')),
               trailing: _sortBy == 'default'
                   ? const Icon(Icons.check_rounded, color: Color(0xFF4F46E5))
                   : null,
@@ -351,7 +352,7 @@ class _TasksScreenState extends State<TasksScreen> {
               },
             ),
             ListTile(
-              title: const Text('Дедлайн мерзімі бойынша'),
+              title: Text(LocaleService.instance.t('sort_deadline')),
               trailing: _sortBy == 'deadline'
                   ? const Icon(Icons.check_rounded, color: Color(0xFF4F46E5))
                   : null,
@@ -361,7 +362,7 @@ class _TasksScreenState extends State<TasksScreen> {
               },
             ),
             ListTile(
-              title: const Text('Басымдық бойынша (Жоғарыдан төменге)'),
+              title: Text(LocaleService.instance.t('sort_priority')),
               trailing: _sortBy == 'priority'
                   ? const Icon(Icons.check_rounded, color: Color(0xFF4F46E5))
                   : null,
@@ -489,7 +490,7 @@ class _TasksScreenState extends State<TasksScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Тапсырмалар',
+              LocaleService.instance.t('tasks_title'),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -517,7 +518,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 color: Color(0xFF4F46E5),
                 size: 26,
               ),
-              tooltip: 'Тапсырма жасау',
+              tooltip: LocaleService.instance.t('create_task'),
             ),
           ],
         ),
@@ -545,7 +546,7 @@ class _TasksScreenState extends State<TasksScreen> {
               color: isDark ? Colors.white : const Color(0xFF0F172A),
             ),
             decoration: InputDecoration(
-              hintText: 'Тапсырманы іздеу',
+              hintText: LocaleService.instance.t('search_tasks_hint'),
               hintStyle: TextStyle(
                 fontSize: 14,
                 color:

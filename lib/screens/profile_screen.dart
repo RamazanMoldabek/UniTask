@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
 import '../models/task.dart';
+import '../services/locale_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   final List<Task> tasks;
@@ -23,17 +23,17 @@ class ProfileScreen extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF1E293B) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Жүйеден шығу',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          LocaleService.instance.t('logout_title'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
-        content: const Text('Шынымен аккаунтыңыздан шыққыңыз келе ме?'),
+        content: Text(LocaleService.instance.t('logout_confirm')),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Болдырмау',
-              style: TextStyle(color: Color(0xFF64748B)),
+            child: Text(
+              LocaleService.instance.t('cancel'),
+              style: const TextStyle(color: Color(0xFF64748B)),
             ),
           ),
           FilledButton(
@@ -48,7 +48,7 @@ class ProfileScreen extends StatelessWidget {
               Navigator.pop(ctx);
               onLogout();
             },
-            child: const Text('Шығу'),
+            child: Text(LocaleService.instance.t('logout')),
           ),
         ],
       ),
@@ -56,34 +56,33 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showLanguageDialog(BuildContext context) {
+    final currentLang = LocaleService.instance.currentLanguage;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Тілді таңдаңыз',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        title: Text(
+          LocaleService.instance.t('select_language'),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Қазақша'),
-              trailing: const Icon(
-                Icons.check_rounded,
-                color: Color(0xFF4F46E5),
-              ),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            ListTile(
-              title: const Text('Русский'),
-              onTap: () => Navigator.pop(ctx),
-            ),
-            ListTile(
-              title: const Text('English'),
-              onTap: () => Navigator.pop(ctx),
-            ),
-          ],
+          children: AppLanguage.values.map((lang) {
+            final isSelected = lang == currentLang;
+            return ListTile(
+              title: Text(lang.label),
+              trailing: isSelected
+                  ? const Icon(
+                      Icons.check_rounded,
+                      color: Color(0xFF4F46E5),
+                    )
+                  : null,
+              onTap: () {
+                LocaleService.instance.setLanguage(lang);
+                Navigator.pop(ctx);
+              },
+            );
+          }).toList(),
         ),
       ),
     );
@@ -94,13 +93,11 @@ class ProfileScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
-          'Еске салғыштар',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+        title: Text(
+          LocaleService.instance.t('reminders'),
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
         ),
-        content: const Text(
-          'Дедлайнға 1 күн және 2 сағат қалғанда хабарламалар жіберіледі.',
-        ),
+        content: Text(LocaleService.instance.t('reminders_desc')),
         actions: [
           FilledButton(
             style: FilledButton.styleFrom(
@@ -110,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Жақсы'),
+            child: Text(LocaleService.instance.t('ok')),
           ),
         ],
       ),
@@ -121,28 +118,33 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      backgroundColor: isDark
-          ? const Color(0xFF0F172A)
-          : const Color(0xFFF8FAFC),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
-          children: [
-            // Title
-            Text(
-              'Профиль',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : const Color(0xFF0F172A),
-              ),
-            ),
-            const SizedBox(height: 20),
+    return ListenableBuilder(
+      listenable: LocaleService.instance,
+      builder: (context, _) {
+        final loc = LocaleService.instance;
 
-            // Profile Card (Avatar + Info)
-            Row(
+        return Scaffold(
+          backgroundColor: isDark
+              ? const Color(0xFF0F172A)
+              : const Color(0xFFF8FAFC),
+          body: SafeArea(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
               children: [
+                // Title
+                Text(
+                  loc.t('profile_title'),
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Profile Card (Avatar + Info)
+                Row(
+                  children: [
                 // PT Avatar circle
                 Container(
                   width: 60,
@@ -188,9 +190,9 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 3),
-                      const Text(
-                        'Студент',
-                        style: TextStyle(
+                      Text(
+                        loc.t('student'),
+                        style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF4F46E5),
@@ -242,7 +244,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'тапсырма орындалды',
+                          loc.t('tasks_completed_stat'),
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark
@@ -291,7 +293,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'уақытында тапсырылды',
+                          loc.t('on_time_stat'),
                           style: TextStyle(
                             fontSize: 12,
                             color: isDark
@@ -309,7 +311,7 @@ class ProfileScreen extends StatelessWidget {
 
             // Settings header
             Text(
-              'Баптаулар',
+              loc.t('settings'),
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
@@ -349,7 +351,7 @@ class ProfileScreen extends StatelessWidget {
                         const SizedBox(width: 14),
                         Expanded(
                           child: Text(
-                            'Қараңғы режим',
+                            loc.t('dark_mode'),
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
@@ -394,7 +396,7 @@ class ProfileScreen extends StatelessWidget {
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
-                              'Тіл',
+                              loc.t('language'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -405,7 +407,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Қазақша',
+                            loc.currentLanguage.label,
                             style: TextStyle(
                               fontSize: 13,
                               color: isDark
@@ -452,7 +454,7 @@ class ProfileScreen extends StatelessWidget {
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
-                              'Еске салғыштар',
+                              loc.t('reminders'),
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
@@ -463,7 +465,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Қосулы',
+                            loc.t('enabled'),
                             style: TextStyle(
                               fontSize: 13,
                               color: isDark
@@ -499,7 +501,7 @@ class ProfileScreen extends StatelessWidget {
                   color: isDark ? const Color(0xFFF87171) : const Color(0xFFEF4444),
                 ),
                 label: Text(
-                  'Шығу',
+                  loc.t('logout'),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -529,7 +531,7 @@ class ProfileScreen extends StatelessWidget {
             // App Version Footer
             Center(
               child: Text(
-                'UniTask · Нұсқа 1.0.0',
+                loc.t('app_version'),
                 style: TextStyle(
                   fontSize: 12,
                   color: isDark
@@ -541,6 +543,8 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+      },
     );
   }
 }

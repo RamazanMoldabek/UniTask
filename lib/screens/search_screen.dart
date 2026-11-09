@@ -3,6 +3,7 @@ import '../models/subject.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../services/database_helper.dart';
+import '../services/locale_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
@@ -190,7 +191,7 @@ class _SearchScreenState extends State<SearchScreen> {
           children: [
             // Title
             Text(
-              'Іздеу',
+              LocaleService.instance.t('search_title'),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -220,7 +221,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
                 decoration: InputDecoration(
-                  hintText: 'Тапсырма немесе пәнді іздеу',
+                  hintText: LocaleService.instance.t('search_input_hint'),
                   hintStyle: TextStyle(
                     fontSize: 14,
                     color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),
@@ -256,7 +257,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Соңғы іздеулер',
+                    LocaleService.instance.t('recent_searches'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -265,9 +266,9 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   GestureDetector(
                     onTap: _clearRecent,
-                    child: const Text(
-                      'Тазалау',
-                      style: TextStyle(
+                    child: Text(
+                      LocaleService.instance.t('clear'),
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFF4F46E5),
                         fontWeight: FontWeight.w500,
@@ -319,7 +320,7 @@ class _SearchScreenState extends State<SearchScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Табылған тапсырмалар',
+                  LocaleService.instance.t('found_tasks'),
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.bold,
@@ -327,7 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ),
                 Text(
-                  '${_searchResults.length} нәтиже',
+                  LocaleService.instance.t('results_count', {'count': _searchResults.length}),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -350,7 +351,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 child: Center(
                   child: Text(
-                    'Ешқандай тапсырма табылмады',
+                    LocaleService.instance.t('no_tasks_found'),
                     style: TextStyle(
                       fontSize: 13,
                       color: isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8),

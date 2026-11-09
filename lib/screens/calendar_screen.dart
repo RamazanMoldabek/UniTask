@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
+import '../services/locale_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/task_card.dart';
 import 'task_detail_screen.dart';
@@ -49,26 +50,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   String _getMonthName(int month) {
-    const months = [
-      'Қаңтар',
-      'Ақпан',
-      'Наурыз',
-      'Сәуір',
-      'Мамыр',
-      'Маусым',
-      'Шілде',
-      'Тамыз',
-      'Қыркүйек',
-      'Қазан',
-      'Қараша',
-      'Желтоқсан'
-    ];
-    return months[month - 1];
+    return LocaleService.instance.getMonthName(month);
   }
 
   String _getWeekDayShort(int weekday) {
-    const days = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жк'];
-    return days[weekday - 1];
+    return LocaleService.instance.getWeekdayShort(weekday);
   }
 
   List<DateTime> _generateWeekDays() {
@@ -93,7 +79,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Күнтізбе',
+                  LocaleService.instance.t('calendar_title'),
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -255,7 +241,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  '${_selectedDate.day} ${_getMonthName(_selectedDate.month).toLowerCase()} тапсырмалары',
+                  '${_selectedDate.day} ${_getMonthName(_selectedDate.month).toLowerCase()}',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -263,7 +249,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ),
                 ),
                 Text(
-                  '${dayTasks.length} тапсырма',
+                  LocaleService.instance.t('results_count', {'count': dayTasks.length}),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -295,7 +281,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Бұл күнге тапсырмалар жоқ',
+                        LocaleService.instance.t('no_tasks_for_day'),
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,

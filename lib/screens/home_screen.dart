@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
+import '../services/locale_service.dart';
 import '../services/websocket_service.dart';
 import '../utils/app_logger.dart';
 import '../widgets/connection_banner.dart';
@@ -359,7 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _getKazakhFormattedDate(),
+                  LocaleService.instance.getFormattedDate(DateTime.now()),
                   style: TextStyle(
                     fontSize: 13,
                     color: isDark
@@ -370,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Сәлем, Рамазан!',
+                  LocaleService.instance.t('greeting'),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -428,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Осы аптадағы жетістік',
+                    LocaleService.instance.t('weekly_progress'),
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.85),
                       fontSize: 13,
@@ -444,7 +445,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '$completedTasksCount/$totalTasks орындалды',
+                LocaleService.instance.t('tasks_completed_count', {
+                  'completed': completedTasksCount,
+                  'total': totalTasks,
+                }),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
@@ -465,10 +469,10 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 12),
               Text(
                 totalTasks == 0
-                    ? 'Алғашқы тапсырманы қосыңыз!'
+                    ? LocaleService.instance.t('add_first_task')
                     : (remainingCount > 0
-                        ? 'Керемет! Тағы $remainingCount тапсырма қалды.'
-                        : 'Тамаша! Барлық тапсырма орындалды! 🎉'),
+                        ? LocaleService.instance.t('tasks_remaining', {'count': remainingCount})
+                        : LocaleService.instance.t('all_tasks_completed')),
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
                   fontSize: 13,
@@ -507,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 child: Text(
-                  'Барлығы',
+                  LocaleService.instance.t('filter_all'),
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -557,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      'Шұғыл',
+                      LocaleService.instance.t('filter_urgent'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,

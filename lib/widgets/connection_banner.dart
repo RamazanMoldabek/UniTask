@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/locale_service.dart';
 import '../services/websocket_service.dart';
 
 class ConnectionBanner extends StatefulWidget {
@@ -57,19 +58,21 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
     String message;
     Widget? actionWidget;
 
+    final loc = LocaleService.instance;
+
     switch (_status) {
       case SocketStatus.connected:
         bgColor = const Color(0xFF10B981); // Emerald
         textColor = Colors.white;
         icon = Icons.check_circle_rounded;
-        message = 'Байланыс орнатылды (Realtime қосулы)';
+        message = loc.t('banner_connected');
         break;
       case SocketStatus.connecting:
       case SocketStatus.reconnecting:
         bgColor = const Color(0xFFD97706); // Amber
         textColor = Colors.white;
         icon = Icons.sync_rounded;
-        message = 'Желі жоқ / Қайта қосылуда...';
+        message = loc.t('banner_reconnecting');
         actionWidget = const SizedBox(
           width: 14,
           height: 14,
@@ -83,7 +86,7 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
         bgColor = const Color(0xFFEF4444); // Red
         textColor = Colors.white;
         icon = Icons.wifi_off_rounded;
-        message = 'Офлайн режимі / Желі жоқ';
+        message = loc.t('banner_offline');
         actionWidget = GestureDetector(
           onTap: () => WebSocketService.instance.connect(),
           child: Container(
@@ -92,9 +95,9 @@ class _ConnectionBannerState extends State<ConnectionBanner> {
               color: Colors.white.withValues(alpha: 0.25),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Text(
-              'Қайталау',
-              style: TextStyle(
+            child: Text(
+              loc.t('retry'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
                 fontSize: 11,
