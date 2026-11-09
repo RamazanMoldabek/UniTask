@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -113,11 +114,15 @@ class DatabaseHelper {
     // Task 1: Деректер қоры
     final task1Id = await db.insert('tasks', {
       'title': 'Зертханалық жұмыс №4',
-      'description':
-          'PostgreSQL деректер қорында индекстер құру және транзакцияларды оңтайландыру.',
+      'description': 'PostgreSQL деректер қорында индекстер құру және транзакцияларды оңтайландыру.',
       'subject_id': sub2Id,
-      'deadline':
-          DateTime(now.year, now.month, now.day + 2, 12, 0).toIso8601String(),
+      'deadline': DateTime(
+        now.year,
+        now.month,
+        now.day + 2,
+        12,
+        0,
+      ).toIso8601String(),
       'priority': 'Орташа',
       'is_completed': 0,
       'is_favorite': 1,
@@ -136,11 +141,15 @@ class DatabaseHelper {
     // Task 2: Мобильді әзірлеу
     final task2Id = await db.insert('tasks', {
       'title': 'Мобильді қосымша ТТ',
-      'description':
-          'UniTask қосымшасының техникалық тапсырмасын дайындау. Негізгі экрандар мен қолданушы талаптарын сипаттау.',
+      'description': 'UniTask қосымшасының техникалық тапсырмасын дайындау. Негізгі экрандар мен қолданушы талаптарын сипаттау.',
       'subject_id': sub1Id,
-      'deadline':
-          DateTime(now.year, now.month, now.day + 1, 18, 0).toIso8601String(),
+      'deadline': DateTime(
+        now.year,
+        now.month,
+        now.day + 1,
+        18,
+        0,
+      ).toIso8601String(),
       'priority': 'Жоғары',
       'is_completed': 0,
       'is_favorite': 1,
@@ -164,10 +173,16 @@ class DatabaseHelper {
     // Task 3: Ағылшын тілі
     final task3Id = await db.insert('tasks', {
       'title': 'Academic Writing эссе',
-      'description': 'Academic Writing тақырыбы бойынша 250 сөзден тұратын эссе жазу.',
+      'description':
+          'Academic Writing тақырыбы бойынша 250 сөзден тұратын эссе жазу.',
       'subject_id': sub3Id,
-      'deadline':
-          DateTime(now.year, now.month, now.day - 1, 15, 0).toIso8601String(),
+      'deadline': DateTime(
+        now.year,
+        now.month,
+        now.day - 1,
+        15,
+        0,
+      ).toIso8601String(),
       'priority': 'Төмен',
       'is_completed': 1,
       'is_favorite': 0,
@@ -248,11 +263,7 @@ class DatabaseHelper {
 
   Future<int> deleteSubject(int id) async {
     final db = await database;
-    return await db.delete(
-      'subjects',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('subjects', where: 'id = ?', whereArgs: [id]);
   }
 
   // ================= TASKS CRUD =================
@@ -318,10 +329,12 @@ class DatabaseHelper {
       orderByClause = 'tasks.is_completed ASC, tasks.deadline ASC';
     }
 
-    final whereString =
-        whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
+    final whereString = whereClauses.isNotEmpty
+        ? 'WHERE ${whereClauses.join(' AND ')}'
+        : '';
 
-    final query = '''
+    final query =
+        '''
       SELECT 
         tasks.id,
         tasks.title,
@@ -421,11 +434,7 @@ class DatabaseHelper {
 
     // Synchronize subtasks
     if (task.id.isNotEmpty) {
-      await db.delete(
-        'subtasks',
-        where: 'task_id = ?',
-        whereArgs: [task.id],
-      );
+      await db.delete('subtasks', where: 'task_id = ?', whereArgs: [task.id]);
       if (task.subtasks.isNotEmpty) {
         final batch = db.batch();
         for (final st in task.subtasks) {
@@ -469,11 +478,7 @@ class DatabaseHelper {
 
   Future<int> deleteTask(int id) async {
     final db = await database;
-    return await db.delete(
-      'tasks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('tasks', where: 'id = ?', whereArgs: [id]);
   }
 
   // ================= SEARCH & FILTER =================
@@ -508,10 +513,12 @@ class DatabaseHelper {
         whereArgs.add(isCompleted ? 1 : 0);
       }
 
-      final whereString =
-          whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
+      final whereString = whereClauses.isNotEmpty
+          ? 'WHERE ${whereClauses.join(' AND ')}'
+          : '';
 
-      final sql = '''
+      final sql =
+          '''
         SELECT 
           tasks.id,
           tasks.title,
@@ -581,35 +588,41 @@ class DatabaseHelper {
 
   Future<int> deleteSubtask(int id) async {
     final db = await database;
-    return await db.delete(
-      'subtasks',
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    return await db.delete('subtasks', where: 'id = ?', whereArgs: [id]);
   }
 
   // ================= USER PROFILE CRUD =================
   Future<UserProfile?> getUserProfile() async {
-    final db = await database;
-    final maps = await db.query('user_profile', limit: 1);
-    if (maps.isNotEmpty) {
-      return UserProfile.fromMap(maps.first);
+    if (kIsWeb) return null;
+    try {
+      final db = await database;
+      final maps = await db.query('user_profile', limit: 1);
+      if (maps.isNotEmpty) {
+        return UserProfile.fromMap(maps.first);
+      }
+      return null;
+    } catch (_) {
+      return null;
     }
-    return null;
   }
 
   Future<int> saveUserProfile(UserProfile profile) async {
-    final db = await database;
-    final existing = await getUserProfile();
-    if (existing == null) {
-      return await db.insert('user_profile', profile.toMap());
-    } else {
-      return await db.update(
-        'user_profile',
-        profile.toMap(),
-        where: 'id = ?',
-        whereArgs: [existing.id],
-      );
+    if (kIsWeb) return 0;
+    try {
+      final db = await database;
+      final existing = await getUserProfile();
+      if (existing == null) {
+        return await db.insert('user_profile', profile.toMap());
+      } else {
+        return await db.update(
+          'user_profile',
+          profile.toMap(),
+          where: 'id = ?',
+          whereArgs: [existing.id],
+        );
+      }
+    } catch (_) {
+      return 0;
     }
   }
 

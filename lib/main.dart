@@ -14,6 +14,7 @@ import 'widgets/error_state_view.dart';
 import 'services/api_service.dart';
 import 'services/database_helper.dart';
 import 'services/locale_service.dart';
+import 'services/user_service.dart';
 import 'services/websocket_service.dart';
 import 'utils/app_logger.dart';
 
@@ -23,6 +24,7 @@ void main() {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  UserService.instance.init();
   // Start Realtime WebSocket connection
   WebSocketService.instance.connect();
   AppLogger.info('UniTask application initialized');
@@ -250,7 +252,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: LocaleService.instance,
+      listenable: Listenable.merge([LocaleService.instance, UserService.instance]),
       builder: (context, _) {
         final isDark = widget.isDarkMode;
         final loc = LocaleService.instance;

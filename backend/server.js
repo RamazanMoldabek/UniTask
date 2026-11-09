@@ -8,6 +8,7 @@ const { WebSocketServer, WebSocket } = require('ws');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'tasks.json');
+const USERS_FILE = path.join(__dirname, 'users.json');
 
 // Middleware
 app.use(cors());
@@ -71,9 +72,91 @@ function saveTasks(tasks) {
   }
 }
 
+// Helper to load users
+function loadUsers() {
+  try {
+    if (!fs.existsSync(USERS_FILE)) {
+      fs.writeFileSync(USERS_FILE, JSON.stringify([], null, 2), 'utf8');
+      return [];
+    }
+    const data = fs.readFileSync(USERS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (err) {
+    console.error('Error loading users:', err);
+    return [];
+  }
+}
+
+// Helper to save users
+function saveUsers(users) {
+  try {
+    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
+  } catch (err) {
+    console.error('Error saving users:', err);
+  }
+}
+
 // REST API Endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: process.uptime(), timestamp: new Date() });
+});
+
+// GET /users
+app.get('/users', (req, res) => {
+  const users = loadUsers().map(({ password, ...safeUser }) => safeUser);
+  res.json(users);
+});
+
+// POST /auth/register
+app.post('/auth/register', (req, res) => {
+  const { fullName, university, email, password } = req.body || {};
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ error: 'Барлық өрістерді толтырыңыз' });
+  }
+  const users = loadUsers();
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const existingIdx = users.findIndex(
+    (u) => String(u.email).toLowerCase() === normalizedEmail
+  );
+
+  const userRecord = {
+    id: existingIdx !== -1 ? users[existingIdx].id : String(Date.now()),
+    fullName: String(fullName).trim(),
+    university: String(university || '').trim(),
+    email: String(email).trim(),
+    password: String(password),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (existingIdx !== -1) {
+    users[existingIdx] = userRecord;
+  } else {
+    users.push(userRecord);
+  }
+  saveUsers(users);
+
+  const { password: _, ...safeUser } = userRecord;
+  res.status(201).json({ user: safeUser });
+});
+
+// POST /auth/login
+app.post('/auth/login', (req, res) => {
+  const { email, password } = req.body || {};
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email және құпиясөз қажет' });
+  }
+  const users = loadUsers();
+  const normalizedEmail = String(email).trim().toLowerCase();
+  const found = users.find(
+    (u) => String(u.email).toLowerCase() === normalizedEmail
+  );
+
+  if (!found || found.password !== String(password)) {
+    return res.status(401).json({ error: 'Email немесе құпиясөз қате' });
+  }
+
+  const { password: _, ...safeUser } = found;
+  res.json({ user: safeUser });
 });
 
 // GET /tasks

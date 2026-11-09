@@ -90,7 +90,6 @@ class LocaleService extends ChangeNotifier {
         ];
         return '${weekdays[date.weekday - 1]}, ${months[date.month - 1]} ${date.day}';
       case AppLanguage.kk:
-      default:
         const weekdays = [
           'Дүйсенбі',
           'Сейсенбі',
@@ -153,7 +152,6 @@ class LocaleService extends ChangeNotifier {
         ];
         return months[month - 1];
       case AppLanguage.kk:
-      default:
         const months = [
           'Қаңтар',
           'Ақпан',
@@ -181,7 +179,6 @@ class LocaleService extends ChangeNotifier {
         const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
         return days[weekday - 1];
       case AppLanguage.kk:
-      default:
         const days = ['Дс', 'Сс', 'Ср', 'Бс', 'Жм', 'Сн', 'Жк'];
         return days[weekday - 1];
     }
@@ -198,6 +195,7 @@ class LocaleService extends ChangeNotifier {
 
       // Profile Screen
       'profile_title': 'Профиль',
+      'major_course': 'Ақпараттық жүйелер · 2-курс',
       'student': 'Студент',
       'settings': 'Баптаулар',
       'tasks_completed_stat': 'тапсырма орындалды',
@@ -217,7 +215,7 @@ class LocaleService extends ChangeNotifier {
       'app_version': 'UniTask · Нұсқа 1.0.0',
 
       // Home Screen
-      'greeting': 'Сәлем, Рамазан!',
+      'greeting': 'Сәлем, {name}!',
       'weekly_progress': 'Осы аптадағы жетістік',
       'tasks_completed_count': '{completed}/{total} орындалды',
       'add_first_task': 'Алғашқы тапсырманы қосыңыз!',
@@ -278,6 +276,7 @@ class LocaleService extends ChangeNotifier {
 
       // Profile Screen
       'profile_title': 'Профиль',
+      'major_course': 'Информационные системы · 2 курс',
       'student': 'Студент',
       'settings': 'Настройки',
       'tasks_completed_stat': 'задач выполнено',
@@ -297,7 +296,7 @@ class LocaleService extends ChangeNotifier {
       'app_version': 'UniTask · Версия 1.0.0',
 
       // Home Screen
-      'greeting': 'Привет, Рамазан!',
+      'greeting': 'Привет, {name}!',
       'weekly_progress': 'Прогресс за неделю',
       'tasks_completed_count': '{completed}/{total} выполнено',
       'add_first_task': 'Добавьте первую задачу!',
@@ -358,6 +357,7 @@ class LocaleService extends ChangeNotifier {
 
       // Profile Screen
       'profile_title': 'Profile',
+      'major_course': 'Information Systems · 2nd Year',
       'student': 'Student',
       'settings': 'Settings',
       'tasks_completed_stat': 'tasks completed',
@@ -377,7 +377,7 @@ class LocaleService extends ChangeNotifier {
       'app_version': 'UniTask · Version 1.0.0',
 
       // Home Screen
-      'greeting': 'Hello, Ramazan!',
+      'greeting': 'Hello, {name}!',
       'weekly_progress': 'Weekly Progress',
       'tasks_completed_count': '{completed}/{total} completed',
       'add_first_task': 'Add your first task!',

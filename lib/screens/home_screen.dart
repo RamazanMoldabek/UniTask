@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/task.dart';
 import '../services/api_service.dart';
 import '../services/locale_service.dart';
+import '../services/user_service.dart';
 import '../services/websocket_service.dart';
 import '../utils/app_logger.dart';
 import '../widgets/connection_banner.dart';
@@ -219,36 +220,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _getKazakhFormattedDate() {
-    final now = DateTime.now();
-    const weekdays = [
-      'Дүйсенбі',
-      'Сейсенбі',
-      'Сәрсенбі',
-      'Бейсенбі',
-      'Жұма',
-      'Сенбі',
-      'Жексенбі'
-    ];
-    const months = [
-      'қаңтар',
-      'ақпан',
-      'наурыз',
-      'сәуір',
-      'мамыр',
-      'маусым',
-      'шілде',
-      'тамыз',
-      'қыркүйек',
-      'қазан',
-      'қараша',
-      'желтоқсан'
-    ];
-    final weekday = weekdays[now.weekday - 1];
-    final month = months[now.month - 1];
-    return '$weekday, ${now.day} $month';
-  }
-
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -371,7 +342,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  LocaleService.instance.t('greeting'),
+                  LocaleService.instance.t('greeting', {
+                    'name': UserService.instance.firstName,
+                  }),
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -380,7 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            // Avatar PT
+            // User Avatar Initials
             Container(
               width: 44,
               height: 44,
@@ -392,10 +365,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 1.5,
                 ),
               ),
-              child: const Center(
+              child: Center(
                 child: Text(
-                  'PT',
-                  style: TextStyle(
+                  UserService.instance.initials,
+                  style: const TextStyle(
                     color: Color(0xFF4F46E5),
                     fontWeight: FontWeight.bold,
                     fontSize: 15,
