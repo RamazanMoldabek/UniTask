@@ -32,6 +32,11 @@ migrate_working_dir/
 *.jks
 **/key.properties
 
+# Node.js backend
+**/node_modules/
+backend/tasks.json
+npm-debug.log*
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
