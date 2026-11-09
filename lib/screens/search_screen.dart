@@ -41,18 +41,28 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   @override
+  void didUpdateWidget(SearchScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.tasks != oldWidget.tasks) {
+      _performSearch(_searchQuery);
+    }
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadSubjects() async {
-    final subs = await DatabaseHelper.instance.getSubjects();
-    if (mounted) {
-      setState(() {
-        _subjects = subs;
-      });
-    }
+    try {
+      final subs = await DatabaseHelper.instance.getSubjects();
+      if (mounted) {
+        setState(() {
+          _subjects = subs;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _performSearch(String query) async {
@@ -61,7 +71,24 @@ class _SearchScreenState extends State<SearchScreen> {
       _isLoading = true;
     });
 
-    final results = await DatabaseHelper.instance.searchTasks(query);
+    List<Task> results = [];
+    final allTasks = widget.tasks ?? [];
+    if (allTasks.isNotEmpty) {
+      final q = query.trim().toLowerCase();
+      results = allTasks.where((t) {
+        if (q.isEmpty) return true;
+        return t.title.toLowerCase().contains(q) ||
+            t.subject.toLowerCase().contains(q) ||
+            (t.description?.toLowerCase().contains(q) ?? false);
+      }).toList();
+    } else {
+      try {
+        results = await DatabaseHelper.instance.searchTasks(query);
+      } catch (_) {
+        results = [];
+      }
+    }
+
     if (mounted) {
       setState(() {
         _searchResults = results;

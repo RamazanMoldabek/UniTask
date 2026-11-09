@@ -493,23 +493,31 @@ class ProfileScreen extends StatelessWidget {
               height: 50,
               child: FilledButton.icon(
                 onPressed: () => _showLogoutDialog(context),
-                icon: const Icon(
+                icon: Icon(
                   Icons.logout_rounded,
                   size: 20,
-                  color: Color(0xFFEF4444),
+                  color: isDark ? const Color(0xFFF87171) : const Color(0xFFEF4444),
                 ),
-                label: const Text(
+                label: Text(
                   'Шығу',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFFEF4444),
+                    color: isDark ? const Color(0xFFF87171) : const Color(0xFFEF4444),
                   ),
                 ),
                 style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFFEF2F2),
-                  foregroundColor: const Color(0xFFEF4444),
+                  backgroundColor: isDark
+                      ? const Color(0xFFEF4444).withValues(alpha: 0.12)
+                      : const Color(0xFFFEF2F2),
+                  foregroundColor: isDark ? const Color(0xFFF87171) : const Color(0xFFEF4444),
                   elevation: 0,
+                  side: BorderSide(
+                    color: isDark
+                        ? const Color(0xFFEF4444).withValues(alpha: 0.28)
+                        : const Color(0xFFFECACA),
+                    width: 1,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),

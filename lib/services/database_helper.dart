@@ -20,7 +20,10 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDB(String filePath) async {
-    if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+    if (kIsWeb) {
+      throw UnsupportedError('SQLite is not supported on web.');
+    }
+    if (Platform.isWindows || Platform.isLinux) {
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
     }
@@ -199,9 +202,24 @@ class DatabaseHelper {
   }
 
   Future<List<Subject>> getSubjects() async {
-    final db = await database;
-    final maps = await db.query('subjects', orderBy: 'title ASC');
-    return maps.map((m) => Subject.fromMap(m)).toList();
+    if (kIsWeb) {
+      return const [
+        Subject(id: 1, title: 'Мобильді әзірлеу', colorHex: '#6366F1'),
+        Subject(id: 2, title: 'Деректер қоры', colorHex: '#0EA5E9'),
+        Subject(id: 3, title: 'Ағылшын тілі', colorHex: '#10B981'),
+      ];
+    }
+    try {
+      final db = await database;
+      final maps = await db.query('subjects', orderBy: 'title ASC');
+      return maps.map((m) => Subject.fromMap(m)).toList();
+    } catch (_) {
+      return const [
+        Subject(id: 1, title: 'Мобильді әзірлеу', colorHex: '#6366F1'),
+        Subject(id: 2, title: 'Деректер қоры', colorHex: '#0EA5E9'),
+        Subject(id: 3, title: 'Ағылшын тілі', colorHex: '#10B981'),
+      ];
+    }
   }
 
   Future<Subject?> getSubjectById(int id) async {
@@ -459,59 +477,64 @@ class DatabaseHelper {
     String? priority,
     bool? isCompleted,
   }) async {
-    final db = await database;
-    final trimmed = query.trim();
+    if (kIsWeb) return [];
+    try {
+      final db = await database;
+      final trimmed = query.trim();
 
-    final whereClauses = <String>[];
-    final whereArgs = <dynamic>[];
+      final whereClauses = <String>[];
+      final whereArgs = <dynamic>[];
 
-    if (trimmed.isNotEmpty) {
-      whereClauses.add(
-        '(tasks.title LIKE ? OR tasks.description LIKE ? OR subjects.title LIKE ?)',
-      );
-      final pattern = '%$trimmed%';
-      whereArgs.addAll([pattern, pattern, pattern]);
+      if (trimmed.isNotEmpty) {
+        whereClauses.add(
+          '(tasks.title LIKE ? OR tasks.description LIKE ? OR subjects.title LIKE ?)',
+        );
+        final pattern = '%$trimmed%';
+        whereArgs.addAll([pattern, pattern, pattern]);
+      }
+
+      if (priority != null && priority.isNotEmpty) {
+        whereClauses.add('tasks.priority = ?');
+        whereArgs.add(priority);
+      }
+
+      if (isCompleted != null) {
+        whereClauses.add('tasks.is_completed = ?');
+        whereArgs.add(isCompleted ? 1 : 0);
+      }
+
+      final whereString =
+          whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
+
+      final sql = '''
+        SELECT 
+          tasks.id,
+          tasks.title,
+          tasks.description,
+          tasks.subject_id,
+          subjects.title AS subject_title,
+          subjects.color_hex AS subject_color_hex,
+          tasks.deadline,
+          tasks.priority,
+          tasks.is_completed,
+          tasks.is_favorite
+        FROM tasks
+        LEFT JOIN subjects ON tasks.subject_id = subjects.id
+        $whereString
+        ORDER BY tasks.is_completed ASC, tasks.deadline ASC
+      ''';
+
+      final result = await db.rawQuery(sql, whereArgs);
+      final tasks = <Task>[];
+      for (final map in result) {
+        final taskId = map['id'] as int;
+        final subtasks = await getSubtasks(taskId);
+        tasks.add(Task.fromMap(map).copyWith(subtasks: subtasks));
+      }
+      return tasks;
+    } catch (_) {
+      return [];
     }
-
-    if (priority != null && priority.isNotEmpty) {
-      whereClauses.add('tasks.priority = ?');
-      whereArgs.add(priority);
-    }
-
-    if (isCompleted != null) {
-      whereClauses.add('tasks.is_completed = ?');
-      whereArgs.add(isCompleted ? 1 : 0);
-    }
-
-    final whereString =
-        whereClauses.isNotEmpty ? 'WHERE ${whereClauses.join(' AND ')}' : '';
-
-    final sql = '''
-      SELECT 
-        tasks.id,
-        tasks.title,
-        tasks.description,
-        tasks.subject_id,
-        subjects.title AS subject_title,
-        subjects.color_hex AS subject_color_hex,
-        tasks.deadline,
-        tasks.priority,
-        tasks.is_completed,
-        tasks.is_favorite
-      FROM tasks
-      LEFT JOIN subjects ON tasks.subject_id = subjects.id
-      $whereString
-      ORDER BY tasks.is_completed ASC, tasks.deadline ASC
-    ''';
-
-    final result = await db.rawQuery(sql, whereArgs);
-    final tasks = <Task>[];
-    for (final map in result) {
-      final taskId = map['id'] as int;
-      final subtasks = await getSubtasks(taskId);
-      tasks.add(Task.fromMap(map).copyWith(subtasks: subtasks));
-    }
-    return tasks;
   }
 
   // ================= SUBTASKS CRUD =================
